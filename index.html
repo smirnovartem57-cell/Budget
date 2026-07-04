@@ -194,39 +194,6 @@
   .summary-card.balance .value { color: var(--btn-primary); }
   .summary-card.balance-total .value { color: var(--graphite); }
 
-  /* mini summary row (all-time totals, half size) */
-  .summary-grid-mini {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-bottom: 12px;
-  }
-  @media (max-width: 900px) {
-    .summary-grid-mini { grid-template-columns: repeat(3, 1fr); }
-  }
-  .mini-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 9px 12px;
-  }
-  .mini-card .label {
-    font-size: 10px;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    font-weight: 600;
-    margin-bottom: 3px;
-  }
-  .mini-card .value {
-    font-family: 'Manrope', sans-serif;
-    font-size: 14px;
-    font-weight: 800;
-  }
-  .mini-card.income .value { color: var(--income-accent); }
-  .mini-card.expense .value { color: var(--expense-accent); }
-  .mini-card.balance .value { color: var(--graphite); }
-
   /* main grid */
   .main-grid {
     display: grid;
@@ -476,21 +443,6 @@
     вставьте туда данные вашего проекта Supabase. Подробности — в файле <code>README.md</code>.
   </div>
 
-  <div class="summary-grid-mini">
-    <div class="mini-card income">
-      <div class="label">Доход за весь период</div>
-      <div class="value" id="sumIncomeTotal">—</div>
-    </div>
-    <div class="mini-card expense">
-      <div class="label">Расход за весь период</div>
-      <div class="value" id="sumExpenseTotal">—</div>
-    </div>
-    <div class="mini-card balance">
-      <div class="label">Остаток за весь период</div>
-      <div class="value" id="balanceTotal">—</div>
-    </div>
-  </div>
-
   <div class="summary-grid">
     <div class="summary-card income">
       <div class="label" id="labelIncomePeriod">Доход за месяц</div>
@@ -562,7 +514,7 @@
     <div>
       <!-- CHARTS -->
       <div class="panel">
-        <h2>Динамика по месяцам <span class="badge-info">12 мес</span></h2>
+        <h2>Динамика <span id="dynamicsPeriodLabel">по месяцам</span> <span class="badge-info" id="dynamicsBadge">12 мес</span></h2>
         <div class="chart-box"><canvas id="dynamicsChart"></canvas></div>
       </div>
 
@@ -765,7 +717,6 @@ function populateCategorySelect() {
   list.forEach(c => {
     const opt = document.createElement('option');
     opt.value = c.name;
-    opt.dataset.default = c.default_amount ?? '';
     opt.textContent = c.name;
     sel.appendChild(opt);
   });
@@ -777,17 +728,13 @@ function populateCategorySelect() {
   document.getElementById('newCatInline').classList.remove('visible');
   document.getElementById('newCatName').value = '';
 
-  // auto-fill default amount if present + toggle credit sub-select
+  // toggle credit sub-select
   sel.onchange = () => {
     if (sel.value === '__new__') {
       document.getElementById('newCatInline').classList.add('visible');
       document.getElementById('creditNameRow').classList.remove('visible');
     } else {
       document.getElementById('newCatInline').classList.remove('visible');
-      const opt = sel.selectedOptions[0];
-      if (opt && opt.dataset.default) {
-        document.getElementById('amountInput').value = opt.dataset.default;
-      }
       if (sel.value === 'Кредит') {
         document.getElementById('creditNameRow').classList.add('visible');
         populateCreditNameSelect();
@@ -1063,9 +1010,6 @@ function renderSummary() {
   const incomePrev = sumForMonths(prevMonths, 'income');
   const expensePrev = sumForMonths(prevMonths, 'expense');
 
-  const incomeTotal = state.transactions.filter(t => t.kind === 'income').reduce((s,t) => s + Number(t.amount), 0);
-  const expenseTotal = state.transactions.filter(t => t.kind === 'expense').reduce((s,t) => s + Number(t.amount), 0);
-
   document.getElementById('sumIncomeMonth').textContent = fmt.format(incomePeriod);
   document.getElementById('sumExpenseMonth').textContent = fmt.format(expensePeriod);
   document.getElementById('balanceMonth').textContent = fmt.format(incomePeriod - expensePeriod);
@@ -1076,10 +1020,6 @@ function renderSummary() {
   const gi = document.getElementById('growthIncome'); gi.textContent = gIncome.text; gi.className = 'growth-indicator ' + gIncome.dir;
   const ge = document.getElementById('growthExpense'); ge.textContent = gExpense.text; ge.className = 'growth-indicator ' + gExpense.dir;
   const gb = document.getElementById('growthBalance'); gb.textContent = gBalance.text; gb.className = 'growth-indicator ' + gBalance.dir;
-
-  document.getElementById('sumIncomeTotal').textContent = fmt.format(incomeTotal);
-  document.getElementById('sumExpenseTotal').textContent = fmt.format(expenseTotal);
-  document.getElementById('balanceTotal').textContent = fmt.format(incomeTotal - expenseTotal);
 }
 
 /* ---------------- RENDER: TABLE ---------------- */
@@ -1132,17 +1072,30 @@ function last12Months() {
   return months;
 }
 
+function allYears() {
+  return Array.from(new Set(fullMonthRange().map(k => k.split('-')[0]))).sort();
+}
+
 function renderDynamicsChart() {
-  const months = last12Months();
-  const income = months.map(m => state.transactions.filter(t => t.kind==='income' && monthKey(t.date)===m).reduce((s,t)=>s+Number(t.amount),0));
-  const expense = months.map(m => state.transactions.filter(t => t.kind==='expense' && monthKey(t.date)===m).reduce((s,t)=>s+Number(t.amount),0));
-  const balance = months.map((m,i) => income[i] - expense[i]);
+  const byYear = state.viewMode === 'year';
+  document.getElementById('dynamicsPeriodLabel').textContent = byYear ? 'по годам' : 'по месяцам';
+
+  const labels = byYear ? allYears() : last12Months();
+  document.getElementById('dynamicsBadge').textContent = byYear ? `${labels.length} лет` : '12 мес';
+
+  const income = byYear
+    ? labels.map(y => sumForMonths(fullMonthRange().filter(k => k.startsWith(y + '-')), 'income'))
+    : labels.map(m => sumForMonths([m], 'income'));
+  const expense = byYear
+    ? labels.map(y => sumForMonths(fullMonthRange().filter(k => k.startsWith(y + '-')), 'expense'))
+    : labels.map(m => sumForMonths([m], 'expense'));
+  const balance = labels.map((_, i) => income[i] - expense[i]);
 
   const ctx = document.getElementById('dynamicsChart');
   if (dynamicsChartInstance) dynamicsChartInstance.destroy();
   dynamicsChartInstance = new Chart(ctx, {
     data: {
-      labels: months.map(m => monthLabel(m).replace(/^(\S+)/, s => s.charAt(0).toUpperCase()+s.slice(1))),
+      labels: byYear ? labels : labels.map(m => monthLabel(m).replace(/^(\S+)/, s => s.charAt(0).toUpperCase()+s.slice(1))),
       datasets: [
         { type: 'bar', label: 'Доход', data: income, backgroundColor: '#2E7D5B99', borderRadius: 4 },
         { type: 'bar', label: 'Расход', data: expense, backgroundColor: '#B4483A99', borderRadius: 4 },
