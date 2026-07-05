@@ -36,6 +36,8 @@
     color: var(--text-primary);
     font-family: 'Inter', -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    width: 100%;
   }
   h1, h2, h3, .display {
     font-family: 'Manrope', sans-serif;
@@ -449,6 +451,39 @@
     animation: pulse 1s infinite ease-in-out;
   }
   @keyframes pulse { 0%,100%{opacity:.3} 50%{opacity:1} }
+
+  /* ===================== MOBILE (iPhone 12 and narrower) ===================== */
+  @media (max-width: 480px) {
+    .app-header { padding: 14px 16px; gap: 10px; }
+    .app-header h1 { font-size: 16px; }
+    .app-header .subtitle { font-size: 11.5px; }
+    .header-btn { margin-left: 8px; padding: 5px 10px; font-size: 11px; }
+
+    .month-picker {
+      width: 100%;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      padding: 8px 10px;
+      gap: 6px;
+    }
+    .month-picker select {
+      flex: 1;
+      min-width: 0;
+      padding: 6px 4px;
+      font-size: 12.5px;
+    }
+    .view-toggle { order: 1; }
+    .month-nav-btn { width: 24px; height: 24px; font-size: 12px; }
+
+    .container { padding: 18px 12px 40px; }
+    .panel { padding: 16px; }
+    .summary-card { padding: 14px; }
+    .summary-card .value { font-size: 20px; }
+    .summary-grid { gap: 10px; }
+
+    table { font-size: 12.5px; }
+    th, td { padding: 8px 6px; }
+  }
 </style>
 </head>
 <body>
@@ -570,6 +605,30 @@
         <div class="chart-box"><canvas id="dynamicsChart"></canvas></div>
       </div>
 
+      <!-- RECURRING EXPENSES -->
+      <div class="panel">
+        <h2 style="justify-content:space-between;">
+          <span>Ежемесячные расходы</span>
+          <span class="badge-info" id="recurringTotalBadge">0 ₽</span>
+        </h2>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Расход</th>
+                <th>Название</th>
+                <th>Дата платежа</th>
+                <th>Дата окончания</th>
+                <th style="text-align:right;">Сумма</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="recurringTableBody"></tbody>
+          </table>
+          <div class="empty-note" id="recurringEmptyNote" style="display:none;">Нет активных ежемесячных расходов</div>
+        </div>
+      </div>
+
       <div class="charts-grid">
         <div class="panel" style="margin-bottom:0;">
           <h2>Доходы по категориям</h2>
@@ -605,32 +664,6 @@
           <div class="empty-note" id="emptyNote" style="display:none;">Нет операций за этот период</div>
         </div>
         <button class="btn-ghost" id="loadMoreBtn" style="width:100%; margin-top:12px; display:none;">Показать ещё 5</button>
-      </div>
-
-      <div style="height:20px;"></div>
-
-      <!-- RECURRING EXPENSES -->
-      <div class="panel">
-        <h2 style="justify-content:space-between;">
-          <span>Ежемесячные расходы</span>
-          <span class="badge-info" id="recurringTotalBadge">0 ₽</span>
-        </h2>
-        <div style="overflow-x:auto;">
-          <table>
-            <thead>
-              <tr>
-                <th>Расход</th>
-                <th>Название</th>
-                <th>Дата платежа</th>
-                <th>Дата окончания</th>
-                <th style="text-align:right;">Сумма</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="recurringTableBody"></tbody>
-          </table>
-          <div class="empty-note" id="recurringEmptyNote" style="display:none;">Нет активных ежемесячных расходов</div>
-        </div>
       </div>
     </div>
   </div>
