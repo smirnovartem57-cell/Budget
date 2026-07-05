@@ -434,6 +434,50 @@
   .shopping-date-input { width: auto; min-width: 140px; padding: 6px 8px; font-size: 13px; }
   .days-remaining { font-size: 11.5px; color: var(--text-secondary); margin-top: 3px; }
   .days-remaining.overdue { color: var(--expense-accent); font-weight: 600; }
+  .inline-name-input { width: 100%; min-width: 140px; padding: 6px 8px; font-size: 13.5px; font-weight: 600; }
+  .inline-amount-input { width: 100px; padding: 6px 8px; font-size: 13.5px; text-align: right; }
+
+  .demo-banner {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: #FFF4D6;
+    border: 1px solid #E8C468;
+    color: #6B4E00;
+    padding: 12px 18px;
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+  .demo-banner.visible { display: flex; }
+  .demo-banner .header-btn-inline {
+    background: #6B4E00;
+    color: #FFF4D6;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    flex-shrink: 0;
+  }
+
+  .btn-tiny {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-page);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    white-space: nowrap;
+  }
+  .btn-tiny:hover { border-color: var(--income-accent); color: var(--income-accent); }
+  .debt-row-paid { opacity: 0.5; }
+  .debt-row-paid .cat-badge { text-decoration: line-through; }
 
   .toast {
     position: fixed;
@@ -524,10 +568,16 @@
     вставьте туда данные вашего проекта Supabase. Подробности — в файле <code>README.md</code>.
   </div>
 
+  <div id="demoBanner" class="demo-banner">
+    <span>👀 Вы просматриваете демо-данные — это не ваши реальные записи.</span>
+    <button type="button" class="header-btn-inline" id="demoBannerLoginBtn">Войти</button>
+  </div>
+
   <div class="page-tabs">
     <button type="button" class="page-tab-btn active" id="tabBudgetBtn">Бюджет</button>
     <button type="button" class="page-tab-btn" id="tabDebtsBtn">Долги</button>
     <button type="button" class="page-tab-btn" id="tabShoppingBtn">Покупки</button>
+    <button type="button" class="page-tab-btn" id="tabIncomeBtn">Доходы</button>
   </div>
 
   <div id="budgetView">
@@ -800,6 +850,64 @@
       </div>
     </div>
   </div>
+
+  <div id="incomeView" style="display:none;">
+    <div class="main-grid">
+      <!-- EXPECTED INCOME FORM -->
+      <div class="panel">
+        <h2>Ожидаемый доход</h2>
+        <div class="form-row">
+          <label>Название</label>
+          <input type="text" id="incomeNameInput" placeholder="Например: Оплата от клиента">
+        </div>
+        <div class="form-row">
+          <label>Сумма, ₽</label>
+          <input type="number" id="incomeAmountInput" placeholder="0" min="0" step="1">
+        </div>
+        <div class="form-row">
+          <label>Ожидаемая дата</label>
+          <input type="date" id="incomeDateInput" min="2020-01-01" max="2099-12-31">
+        </div>
+        <div class="form-row">
+          <label>Комментарий (необязательно)</label>
+          <input type="text" id="incomeCommentInput" placeholder="Например: аванс за проект">
+        </div>
+        <button class="btn-primary" id="incomeSubmitBtn">Добавить в список</button>
+      </div>
+
+      <div>
+        <!-- EXPECTED INCOME LIST -->
+        <div class="panel">
+          <h2 style="justify-content:space-between;">
+            <span>Ожидаемые доходы</span>
+            <span class="badge-info" id="incomeTotalBadge">0 ₽</span>
+          </h2>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th class="sortable" id="incomeSortName" data-key="name">Название</th>
+                  <th>Ожидаемая дата</th>
+                  <th>Комментарий</th>
+                  <th class="sortable" id="incomeSortAmount" data-key="amount" style="text-align:right;">Сумма</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="incomeTableBody"></tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" style="font-weight:700;">Итого</td>
+                  <td id="incomeTotalFooter" style="text-align:right; font-weight:700;">0 ₽</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+            <div class="empty-note" id="incomeEmptyNote" style="display:none;">Пока нет ожидаемых доходов</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="auth-modal-overlay" id="authModalOverlay">
@@ -865,6 +973,8 @@ let state = {
   recurringSort: { key: null, dir: 'asc' }, // key: 'name' | 'amount'
   shoppingList: [],
   shoppingSort: { key: null, dir: 'asc' },  // key: 'name' | 'amount'
+  expectedIncome: [],
+  incomeSort: { key: null, dir: 'asc' },    // key: 'name' | 'amount'
 };
 
 let currentUser = null;
@@ -916,7 +1026,12 @@ function sumForMonths(monthKeys, kind) {
 function updateAuthUI() {
   document.getElementById('authBtn').textContent = currentUser ? 'Выйти' : 'Войти';
   document.getElementById('authStatusLabel').textContent = currentUser ? 'Артём' : 'Демо-режим';
+  document.getElementById('demoBanner').classList.toggle('visible', !currentUser);
 }
+
+document.getElementById('demoBannerLoginBtn').addEventListener('click', () => {
+  document.getElementById('authModalOverlay').classList.add('visible');
+});
 
 document.getElementById('authBtn').addEventListener('click', async () => {
   if (currentUser) {
@@ -958,30 +1073,36 @@ async function loadAll() {
   const txQuery = supabaseClient.from('transactions').select('*').order('date', { ascending: false });
   const debtQuery = supabaseClient.from('debts').select('*').order('date', { ascending: false });
   const shoppingQuery = supabaseClient.from('shopping_list').select('*').order('planned_date', { ascending: true });
+  const incomeQuery = supabaseClient.from('expected_income').select('*').order('expected_date', { ascending: true });
   if (currentUser) {
     txQuery.eq('user_id', currentUser.id);
     debtQuery.eq('user_id', currentUser.id);
     shoppingQuery.eq('user_id', currentUser.id);
+    incomeQuery.eq('user_id', currentUser.id);
   } else {
     txQuery.is('user_id', null);
     debtQuery.is('user_id', null);
     shoppingQuery.is('user_id', null);
+    incomeQuery.is('user_id', null);
   }
 
-  const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }] = await Promise.all([
+  const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }] = await Promise.all([
     supabaseClient.from('categories').select('*').order('created_at'),
     txQuery,
     debtQuery,
     shoppingQuery,
+    incomeQuery,
   ]);
   if (catErr) { toast('Ошибка загрузки категорий: ' + catErr.message); return; }
   if (txErr) { toast('Ошибка загрузки операций: ' + txErr.message); return; }
   if (debtErr) { toast('Ошибка загрузки долгов: ' + debtErr.message); return; }
   if (shoppingErr) { toast('Ошибка загрузки списка покупок: ' + shoppingErr.message); return; }
+  if (incomeErr) { toast('Ошибка загрузки ожидаемых доходов: ' + incomeErr.message); return; }
   state.categories = cats || [];
   state.transactions = txs || [];
   state.debts = debts || [];
   state.shoppingList = shopping || [];
+  state.expectedIncome = income || [];
 
   if (!state.selectedMonth) {
     const now = new Date();
@@ -1001,14 +1122,17 @@ document.getElementById('btnKindExpense').addEventListener('click', () => setKin
 document.getElementById('tabBudgetBtn').addEventListener('click', () => switchPageTab('budget'));
 document.getElementById('tabDebtsBtn').addEventListener('click', () => switchPageTab('debts'));
 document.getElementById('tabShoppingBtn').addEventListener('click', () => switchPageTab('shopping'));
+document.getElementById('tabIncomeBtn').addEventListener('click', () => switchPageTab('income'));
 
 function switchPageTab(tab) {
   document.getElementById('tabBudgetBtn').classList.toggle('active', tab === 'budget');
   document.getElementById('tabDebtsBtn').classList.toggle('active', tab === 'debts');
   document.getElementById('tabShoppingBtn').classList.toggle('active', tab === 'shopping');
+  document.getElementById('tabIncomeBtn').classList.toggle('active', tab === 'income');
   document.getElementById('budgetView').style.display = tab === 'budget' ? '' : 'none';
   document.getElementById('debtsView').style.display = tab === 'debts' ? '' : 'none';
   document.getElementById('shoppingView').style.display = tab === 'shopping' ? '' : 'none';
+  document.getElementById('incomeView').style.display = tab === 'income' ? '' : 'none';
 }
 
 /* ---------------- UI: VIEW MODE (MONTH / YEAR) ---------------- */
@@ -1202,6 +1326,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
 document.getElementById('dateInput').valueAsDate = new Date();
 document.getElementById('debtDateInput').valueAsDate = new Date();
 document.getElementById('shoppingDateInput').valueAsDate = new Date();
+document.getElementById('incomeDateInput').valueAsDate = new Date();
 
 /* ---------------- DEBTS ---------------- */
 document.getElementById('debtSubmitBtn').addEventListener('click', async () => {
@@ -1233,10 +1358,19 @@ async function deleteDebt(id) {
   await loadAll();
 }
 
+async function toggleDebtPaid(id, isPaid) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const { error } = await supabaseClient.from('debts').update({ is_paid: isPaid }).eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast(isPaid ? 'Отмечено как оплачено' : 'Возвращено в долги');
+  await loadAll();
+}
+
 function renderDebts() {
   const grid = document.getElementById('debtsByPersonGrid');
+  const unpaid = state.debts.filter(d => !d.is_paid);
   const byPerson = {};
-  state.debts.forEach(d => { byPerson[d.debtor_name] = (byPerson[d.debtor_name] || 0) + Number(d.amount); });
+  unpaid.forEach(d => { byPerson[d.debtor_name] = (byPerson[d.debtor_name] || 0) + Number(d.amount); });
   const people = Object.keys(byPerson).sort();
   grid.innerHTML = people.length
     ? people.map(name => `
@@ -1247,7 +1381,7 @@ function renderDebts() {
       `).join('')
     : '<div class="empty-note">Пока нет долгов</div>';
 
-  const total = state.debts.reduce((s, d) => s + Number(d.amount), 0);
+  const total = unpaid.reduce((s, d) => s + Number(d.amount), 0);
   document.getElementById('debtsTotalBadge').textContent = fmt.format(total);
 
   const tbody = document.getElementById('debtsTableBody');
@@ -1256,13 +1390,17 @@ function renderDebts() {
   document.getElementById('debtsEmptyNote').style.display = list.length ? 'none' : 'block';
   list.forEach(d => {
     const tr = document.createElement('tr');
+    if (d.is_paid) tr.className = 'debt-row-paid';
     const dateFmt = new Date(d.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
     tr.innerHTML = `
       <td>${dateFmt}</td>
       <td><span class="cat-badge">${d.debtor_name}</span></td>
       <td class="comment-cell">${d.comment || ''}</td>
       <td style="text-align:right;" class="amount-income">${fmt.format(d.amount)}</td>
-      <td><button class="del-btn" onclick="deleteDebt('${d.id}')">✕</button></td>
+      <td style="white-space:nowrap;">
+        <button class="btn-tiny" onclick="toggleDebtPaid('${d.id}', ${d.is_paid ? 'false' : 'true'})">${d.is_paid ? 'Вернуть в долги' : 'Оплачено'}</button>
+        <button class="del-btn" onclick="deleteDebt('${d.id}')">✕</button>
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -1306,6 +1444,43 @@ async function updateShoppingDate(id, newDate) {
   await loadAll();
 }
 
+async function updateShoppingField(id, field, rawValue) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  let value = rawValue;
+  if (field === 'amount') {
+    value = parseFloat(rawValue);
+    if (!value || value <= 0) { toast('Сумма должна быть больше нуля'); await loadAll(); return; }
+  } else if (field === 'name') {
+    value = rawValue.trim();
+    if (!value) { toast('Название не может быть пустым'); await loadAll(); return; }
+  }
+  const { error } = await supabaseClient.from('shopping_list').update({ [field]: value }).eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Обновлено');
+  await loadAll();
+}
+
+async function markShoppingBought(id) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const item = state.shoppingList.find(i => i.id === id);
+  if (!item) return;
+  if (!confirm(`Отметить «${item.name}» как купленное и добавить в расходы?`)) return;
+  const { error: insErr } = await supabaseClient.from('transactions').insert({
+    kind: 'expense', category: 'Обязательный', subcategory: null,
+    amount: item.amount, date: new Date().toISOString().slice(0, 10),
+    comment: item.name, user_id: currentUser ? currentUser.id : null,
+  });
+  if (insErr) { toast('Ошибка: ' + insErr.message); return; }
+  const { error: delErr } = await supabaseClient.from('shopping_list').delete().eq('id', id);
+  if (delErr) { toast('Ошибка при удалении из списка: ' + delErr.message); return; }
+  toast('Отмечено как купленное — добавлено в расходы');
+  await loadAll();
+}
+
+function escapeAttr(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function pluralDays(n) {
   const mod10 = n % 10, mod100 = n % 100;
   if (mod10 === 1 && mod100 !== 11) return 'день';
@@ -1345,14 +1520,131 @@ function renderShoppingList() {
     const tr = document.createElement('tr');
     const remaining = item.planned_date ? daysRemainingLabel(item.planned_date) : '';
     tr.innerHTML = `
-      <td><span class="cat-badge">${item.name}</span></td>
+      <td><input type="text" class="inline-name-input" value="${escapeAttr(item.name)}" onchange="updateShoppingField('${item.id}','name', this.value)"></td>
       <td>
         <input type="date" class="shopping-date-input" value="${item.planned_date || ''}" min="2020-01-01" max="2099-12-31" onchange="updateShoppingDate('${item.id}', this.value)">
         ${remaining ? `<div class="days-remaining ${remaining.overdue ? 'overdue' : ''}">${remaining.text}</div>` : ''}
       </td>
       <td class="comment-cell">${item.comment || ''}</td>
-      <td style="text-align:right;" class="amount-expense">${fmt.format(item.amount)}</td>
-      <td><button class="del-btn" onclick="deleteShoppingItem('${item.id}')">✕</button></td>
+      <td style="text-align:right;">
+        <input type="number" class="inline-amount-input" value="${item.amount}" min="0" step="1" onchange="updateShoppingField('${item.id}','amount', this.value)">
+      </td>
+      <td style="white-space:nowrap;">
+        <button class="btn-tiny" onclick="markShoppingBought('${item.id}')">Куплено</button>
+        <button class="del-btn" onclick="deleteShoppingItem('${item.id}')">✕</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------------- EXPECTED INCOME ---------------- */
+document.getElementById('incomeSubmitBtn').addEventListener('click', async () => {
+  if (!isConfigured) { toast('Сначала подключите базу данных (см. README.md)'); return; }
+  const name = document.getElementById('incomeNameInput').value.trim();
+  if (!name) { toast('Введите название'); return; }
+  const amount = parseFloat(document.getElementById('incomeAmountInput').value);
+  if (!amount || amount <= 0) { toast('Введите сумму больше нуля'); return; }
+  const expectedDate = document.getElementById('incomeDateInput').value || null;
+  const comment = document.getElementById('incomeCommentInput').value.trim();
+
+  const { error } = await supabaseClient.from('expected_income').insert({
+    name, amount, expected_date: expectedDate, comment: comment || null,
+    user_id: currentUser ? currentUser.id : null,
+  });
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Добавлено в ожидаемые доходы');
+  document.getElementById('incomeNameInput').value = '';
+  document.getElementById('incomeAmountInput').value = '';
+  document.getElementById('incomeCommentInput').value = '';
+  await loadAll();
+});
+
+async function deleteExpectedIncome(id) {
+  if (!confirm('Удалить этот ожидаемый доход из списка?')) return;
+  const { error } = await supabaseClient.from('expected_income').delete().eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Удалено');
+  await loadAll();
+}
+
+async function updateIncomeDate(id, newDate) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const { error } = await supabaseClient.from('expected_income').update({ expected_date: newDate || null }).eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Дата обновлена');
+  await loadAll();
+}
+
+async function updateIncomeField(id, field, rawValue) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  let value = rawValue;
+  if (field === 'amount') {
+    value = parseFloat(rawValue);
+    if (!value || value <= 0) { toast('Сумма должна быть больше нуля'); await loadAll(); return; }
+  } else if (field === 'name') {
+    value = rawValue.trim();
+    if (!value) { toast('Название не может быть пустым'); await loadAll(); return; }
+  }
+  const { error } = await supabaseClient.from('expected_income').update({ [field]: value }).eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Обновлено');
+  await loadAll();
+}
+
+async function markIncomeReceived(id) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const item = state.expectedIncome.find(i => i.id === id);
+  if (!item) return;
+  if (!confirm(`Отметить «${item.name}» как полученное и добавить в доходы?`)) return;
+  const { error: insErr } = await supabaseClient.from('transactions').insert({
+    kind: 'income', category: 'Другое', subcategory: null,
+    amount: item.amount, date: new Date().toISOString().slice(0, 10),
+    comment: item.name, user_id: currentUser ? currentUser.id : null,
+  });
+  if (insErr) { toast('Ошибка: ' + insErr.message); return; }
+  const { error: delErr } = await supabaseClient.from('expected_income').delete().eq('id', id);
+  if (delErr) { toast('Ошибка при удалении из списка: ' + delErr.message); return; }
+  toast('Отмечено как полученное — добавлено в доходы');
+  await loadAll();
+}
+
+function renderExpectedIncome() {
+  const { key, dir } = state.incomeSort;
+  const list = state.expectedIncome.slice();
+  if (key === 'amount') {
+    list.sort((a, b) => (Number(a.amount) - Number(b.amount)) * (dir === 'asc' ? 1 : -1));
+  } else if (key === 'name') {
+    list.sort((a, b) => a.name.localeCompare(b.name) * (dir === 'asc' ? 1 : -1));
+  } else {
+    list.sort((a, b) => (a.expected_date || '').localeCompare(b.expected_date || ''));
+  }
+  updateSortArrows(state.incomeSort, ['incomeSortName', 'incomeSortAmount']);
+
+  const total = state.expectedIncome.reduce((s, item) => s + Number(item.amount), 0);
+  document.getElementById('incomeTotalBadge').textContent = fmt.format(total);
+  document.getElementById('incomeTotalFooter').textContent = fmt.format(total);
+
+  const tbody = document.getElementById('incomeTableBody');
+  tbody.innerHTML = '';
+  document.getElementById('incomeEmptyNote').style.display = list.length ? 'none' : 'block';
+  list.forEach(item => {
+    const tr = document.createElement('tr');
+    const remaining = item.expected_date ? daysRemainingLabel(item.expected_date) : '';
+    tr.innerHTML = `
+      <td><input type="text" class="inline-name-input" value="${escapeAttr(item.name)}" onchange="updateIncomeField('${item.id}','name', this.value)"></td>
+      <td>
+        <input type="date" class="shopping-date-input" value="${item.expected_date || ''}" min="2020-01-01" max="2099-12-31" onchange="updateIncomeDate('${item.id}', this.value)">
+        ${remaining ? `<div class="days-remaining ${remaining.overdue ? 'overdue' : ''}">${remaining.text}</div>` : ''}
+      </td>
+      <td class="comment-cell">${item.comment || ''}</td>
+      <td style="text-align:right;">
+        <input type="number" class="inline-amount-input" value="${item.amount}" min="0" step="1" onchange="updateIncomeField('${item.id}','amount', this.value)">
+      </td>
+      <td style="white-space:nowrap;">
+        <button class="btn-tiny" onclick="markIncomeReceived('${item.id}')">Получено</button>
+        <button class="del-btn" onclick="deleteExpectedIncome('${item.id}')">✕</button>
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -1556,6 +1848,8 @@ setupSortableHeader('recurringSortName', state.recurringSort, renderRecurring);
 setupSortableHeader('recurringSortAmount', state.recurringSort, renderRecurring);
 setupSortableHeader('shoppingSortName', state.shoppingSort, renderShoppingList);
 setupSortableHeader('shoppingSortAmount', state.shoppingSort, renderShoppingList);
+setupSortableHeader('incomeSortName', state.incomeSort, renderExpectedIncome);
+setupSortableHeader('incomeSortAmount', state.incomeSort, renderExpectedIncome);
 
 function updateSortArrows(sortState, headerIds) {
   headerIds.forEach(id => {
@@ -1787,6 +2081,7 @@ function renderEverything() {
   renderDebts();
   renderRecurring();
   renderShoppingList();
+  renderExpectedIncome();
 }
 
 loadAll();
