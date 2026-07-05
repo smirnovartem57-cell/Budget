@@ -36,8 +36,6 @@
     color: var(--text-primary);
     font-family: 'Inter', -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
-    width: 100%;
   }
   h1, h2, h3, .display {
     font-family: 'Manrope', sans-serif;
@@ -760,10 +758,15 @@ const SUPABASE_ANON_KEY = "sb_publishable_f5ZOPWHISanp6aAsfWeVQg_5Fj9AI22";
 
 let supabaseClient = null;
 let isConfigured = SUPABASE_URL.startsWith("http") && SUPABASE_ANON_KEY.length > 20;
-if (isConfigured) {
+if (isConfigured && window.supabase) {
   supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 } else {
-  document.getElementById('configBanner').style.display = 'block';
+  isConfigured = false;
+  const banner = document.getElementById('configBanner');
+  if (!window.supabase) {
+    banner.innerHTML = '⚠️ Не удалось загрузить библиотеку Supabase (проблема с интернет-соединением). Обновите страницу.';
+  }
+  banner.style.display = 'block';
 }
 
 function fmt_format(amount) {
@@ -853,6 +856,7 @@ document.getElementById('authCancelBtn').addEventListener('click', () => {
   document.getElementById('authModalOverlay').classList.remove('visible');
 });
 document.getElementById('authSubmitBtn').addEventListener('click', async () => {
+  if (!isConfigured) { toast('База данных недоступна — обновите страницу'); return; }
   const email = document.getElementById('authEmailInput').value.trim();
   const password = document.getElementById('authPasswordInput').value;
   if (!email || !password) { toast('Введите email и пароль'); return; }
