@@ -77,6 +77,36 @@
     color: #9CA3AF;
     font-size: 13px;
   }
+  .header-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: var(--graphite-text);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    margin-left: 12px;
+  }
+  .header-btn:hover { background: rgba(255,255,255,0.2); }
+
+  .auth-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 200;
+  }
+  .auth-modal-overlay.visible { display: flex; }
+  .auth-modal {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 24px;
+    width: 320px;
+    max-width: 90vw;
+  }
+  .auth-modal h2 { margin: 0 0 16px; font-size: 17px; }
   .month-picker {
     display: flex; align-items: center; gap: 8px;
     background: rgba(255,255,255,0.06);
@@ -288,6 +318,15 @@
   .name-row { display: none; margin-top: 10px; }
   .name-row.visible { display: block; }
 
+  .recurring-check-label {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .recurring-check-label input { width: auto; }
+
   .page-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
   .page-tab-btn {
     padding: 10px 18px;
@@ -419,8 +458,9 @@
     <div class="brand-mark">₽</div>
     <div>
       <h1>Семейный бюджет</h1>
-      <div class="subtitle">Артём · Оксана</div>
+      <div class="subtitle" id="authStatusLabel">Демо-режим</div>
     </div>
+    <button type="button" class="header-btn" id="authBtn">Войти</button>
   </div>
   <div class="month-picker">
     <div class="view-toggle">
@@ -504,6 +544,17 @@
         <input type="date" id="dateInput" min="2020-01-01" max="2099-12-31">
       </div>
 
+      <div class="form-row" id="recurringRow" style="display:none;">
+        <label class="recurring-check-label">
+          <input type="checkbox" id="recurringCheckbox">
+          Ежемесячный расход
+        </label>
+        <div id="recurringEndDateRow" style="display:none;margin-top:8px;">
+          <label>Дата окончания</label>
+          <input type="date" id="recurringEndDateInput" min="2020-01-01" max="2099-12-31">
+        </div>
+      </div>
+
       <div class="form-row">
         <label>Комментарий (необязательно)</label>
         <input type="text" id="commentInput" placeholder="Например: аванс за проект">
@@ -554,6 +605,32 @@
           <div class="empty-note" id="emptyNote" style="display:none;">Нет операций за этот период</div>
         </div>
         <button class="btn-ghost" id="loadMoreBtn" style="width:100%; margin-top:12px; display:none;">Показать ещё 5</button>
+      </div>
+
+      <div style="height:20px;"></div>
+
+      <!-- RECURRING EXPENSES -->
+      <div class="panel">
+        <h2 style="justify-content:space-between;">
+          <span>Ежемесячные расходы</span>
+          <span class="badge-info" id="recurringTotalBadge">0 ₽</span>
+        </h2>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Расход</th>
+                <th>Название</th>
+                <th>Дата платежа</th>
+                <th>Дата окончания</th>
+                <th style="text-align:right;">Сумма</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="recurringTableBody"></tbody>
+          </table>
+          <div class="empty-note" id="recurringEmptyNote" style="display:none;">Нет активных ежемесячных расходов</div>
+        </div>
       </div>
     </div>
   </div>
@@ -619,6 +696,22 @@
   </div>
 </div>
 
+<div class="auth-modal-overlay" id="authModalOverlay">
+  <div class="auth-modal">
+    <h2>Вход</h2>
+    <div class="form-row">
+      <label>Email</label>
+      <input type="email" id="authEmailInput" placeholder="you@example.com">
+    </div>
+    <div class="form-row">
+      <label>Пароль</label>
+      <input type="password" id="authPasswordInput" placeholder="••••••••">
+    </div>
+    <button class="btn-primary" id="authSubmitBtn">Войти</button>
+    <button class="btn-ghost" id="authCancelBtn" style="width:100%;margin-top:8px;">Отмена</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -658,6 +751,8 @@ let state = {
   txPeriod: 'sync',      // 'sync' | 'all' | 'YYYY-MM'
   txVisibleCount: 5,
 };
+
+let currentUser = null;
 
 function toast(msg) {
   const t = document.getElementById('toast');
@@ -702,16 +797,62 @@ function sumForMonths(monthKeys, kind) {
     .reduce((s,t) => s + Number(t.amount), 0);
 }
 
+/* ---------------- AUTH ---------------- */
+function updateAuthUI() {
+  document.getElementById('authBtn').textContent = currentUser ? 'Выйти' : 'Войти';
+  document.getElementById('authStatusLabel').textContent = currentUser ? 'Артём' : 'Демо-режим';
+}
+
+document.getElementById('authBtn').addEventListener('click', async () => {
+  if (currentUser) {
+    await supabaseClient.auth.signOut();
+    currentUser = null;
+    updateAuthUI();
+    await loadAll();
+    toast('Вы вышли');
+  } else {
+    document.getElementById('authModalOverlay').classList.add('visible');
+  }
+});
+document.getElementById('authCancelBtn').addEventListener('click', () => {
+  document.getElementById('authModalOverlay').classList.remove('visible');
+});
+document.getElementById('authSubmitBtn').addEventListener('click', async () => {
+  const email = document.getElementById('authEmailInput').value.trim();
+  const password = document.getElementById('authPasswordInput').value;
+  if (!email || !password) { toast('Введите email и пароль'); return; }
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) { toast('Ошибка входа: ' + error.message); return; }
+  document.getElementById('authModalOverlay').classList.remove('visible');
+  document.getElementById('authPasswordInput').value = '';
+  toast('Вы вошли');
+  await loadAll();
+});
+
 /* ---------------- DATA LOADING ---------------- */
 async function loadAll() {
   if (!isConfigured) {
     renderEverything();
     return;
   }
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  currentUser = session ? session.user : null;
+  updateAuthUI();
+
+  const txQuery = supabaseClient.from('transactions').select('*').order('date', { ascending: false });
+  const debtQuery = supabaseClient.from('debts').select('*').order('date', { ascending: false });
+  if (currentUser) {
+    txQuery.eq('user_id', currentUser.id);
+    debtQuery.eq('user_id', currentUser.id);
+  } else {
+    txQuery.is('user_id', null);
+    debtQuery.is('user_id', null);
+  }
+
   const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }] = await Promise.all([
     supabaseClient.from('categories').select('*').order('created_at'),
-    supabaseClient.from('transactions').select('*').order('date', { ascending: false }),
-    supabaseClient.from('debts').select('*').order('date', { ascending: false }),
+    txQuery,
+    debtQuery,
   ]);
   if (catErr) { toast('Ошибка загрузки категорий: ' + catErr.message); return; }
   if (txErr) { toast('Ошибка загрузки операций: ' + txErr.message); return; }
@@ -767,7 +908,39 @@ function setKind(kind) {
   document.getElementById('btnKindIncome').classList.toggle('income-active', kind === 'income');
   document.getElementById('btnKindExpense').classList.toggle('active', kind === 'expense');
   document.getElementById('btnKindExpense').classList.toggle('expense-active', kind === 'expense');
+  document.getElementById('recurringRow').style.display = kind === 'expense' ? 'block' : 'none';
+  if (kind === 'income') {
+    document.getElementById('recurringCheckbox').checked = false;
+    document.getElementById('recurringEndDateRow').style.display = 'none';
+  }
   populateCategorySelect();
+}
+
+document.getElementById('recurringCheckbox').addEventListener('change', (e) => {
+  document.getElementById('recurringEndDateRow').style.display = e.target.checked ? 'block' : 'none';
+  const endDateInput = document.getElementById('recurringEndDateInput');
+  if (e.target.checked && !endDateInput.value) {
+    endDateInput.value = `${new Date().getFullYear()}-12-31`;
+  }
+});
+
+function generateMonthlyDates(startDateStr, endDateStr) {
+  const start = new Date(startDateStr + 'T00:00:00');
+  const end = new Date(endDateStr + 'T00:00:00');
+  const day = start.getDate();
+  const dates = [];
+  let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (cursor <= end) {
+    const year = cursor.getFullYear();
+    const month = cursor.getMonth();
+    const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+    const occurrence = new Date(year, month, Math.min(day, lastDayOfMonth));
+    if (occurrence >= start && occurrence <= end) {
+      dates.push(`${occurrence.getFullYear()}-${String(occurrence.getMonth()+1).padStart(2,'0')}-${String(occurrence.getDate()).padStart(2,'0')}`);
+    }
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return dates;
 }
 
 function populateCategorySelect() {
@@ -875,13 +1048,29 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   if (!amount || amount <= 0) { toast('Введите сумму больше нуля'); return; }
   const date = document.getElementById('dateInput').value || new Date().toISOString().slice(0,10);
   const comment = document.getElementById('commentInput').value.trim();
+  const userId = currentUser ? currentUser.id : null;
 
-  const payload = { kind: state.kind, category, subcategory, amount, date, comment: comment || null };
-  const { error } = await supabaseClient.from('transactions').insert(payload);
+  const isRecurring = state.kind === 'expense' && document.getElementById('recurringCheckbox').checked;
+  let payloads;
+  if (isRecurring) {
+    const endDate = document.getElementById('recurringEndDateInput').value;
+    if (!endDate || endDate < date) { toast('Укажите корректную дату окончания'); return; }
+    const groupId = crypto.randomUUID();
+    payloads = generateMonthlyDates(date, endDate).map(d => ({
+      kind: state.kind, category, subcategory, amount, date: d, comment: comment || null,
+      is_recurring: true, recurring_end_date: endDate, recurring_group_id: groupId, user_id: userId,
+    }));
+  } else {
+    payloads = [{ kind: state.kind, category, subcategory, amount, date, comment: comment || null, user_id: userId }];
+  }
+
+  const { error } = await supabaseClient.from('transactions').insert(payloads);
   if (error) { toast('Ошибка: ' + error.message); return; }
-  toast('Операция добавлена');
+  toast(isRecurring ? `Добавлено платежей: ${payloads.length}` : 'Операция добавлена');
   document.getElementById('amountInput').value = '';
   document.getElementById('commentInput').value = '';
+  document.getElementById('recurringCheckbox').checked = false;
+  document.getElementById('recurringEndDateRow').style.display = 'none';
   await loadAll();
 });
 
@@ -900,6 +1089,7 @@ document.getElementById('debtSubmitBtn').addEventListener('click', async () => {
 
   const { error } = await supabaseClient.from('debts').insert({
     debtor_name: debtorName, amount, date, comment: comment || null,
+    user_id: currentUser ? currentUser.id : null,
   });
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Долг добавлен');
@@ -950,6 +1140,56 @@ function renderDebts() {
     `;
     tbody.appendChild(tr);
   });
+}
+
+/* ---------------- RECURRING EXPENSES ---------------- */
+async function deleteRecurringGroup(groupId) {
+  if (!confirm('Удалить весь ежемесячный расход (все платежи)?')) return;
+  const { error } = await supabaseClient.from('transactions').delete().eq('recurring_group_id', groupId);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Удалено');
+  await loadAll();
+}
+
+function renderRecurring() {
+  const groups = {};
+  state.transactions.forEach(t => {
+    if (!t.is_recurring || !t.recurring_group_id) return;
+    if (!groups[t.recurring_group_id]) {
+      groups[t.recurring_group_id] = {
+        category: t.category, subcategory: t.subcategory, amount: Number(t.amount),
+        endDate: t.recurring_end_date, minDate: t.date,
+      };
+    } else if (t.date < groups[t.recurring_group_id].minDate) {
+      groups[t.recurring_group_id].minDate = t.date;
+    }
+  });
+
+  const today = new Date().toISOString().slice(0, 10);
+  const active = Object.entries(groups)
+    .filter(([, g]) => !g.endDate || g.endDate >= today)
+    .sort((a, b) => a[1].minDate.localeCompare(b[1].minDate));
+
+  const tbody = document.getElementById('recurringTableBody');
+  tbody.innerHTML = '';
+  document.getElementById('recurringEmptyNote').style.display = active.length ? 'none' : 'block';
+  let total = 0;
+  active.forEach(([groupId, g]) => {
+    total += g.amount;
+    const tr = document.createElement('tr');
+    const startFmt = new Date(g.minDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const endFmt = g.endDate ? new Date(g.endDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+    tr.innerHTML = `
+      <td>${g.category}</td>
+      <td>${g.subcategory || '—'}</td>
+      <td>${startFmt}</td>
+      <td>${endFmt}</td>
+      <td style="text-align:right;" class="amount-expense">${fmt.format(g.amount)}</td>
+      <td><button class="del-btn" onclick="deleteRecurringGroup('${groupId}')">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('recurringTotalBadge').textContent = fmt.format(total);
 }
 
 /* ---------------- DELETE TRANSACTION ---------------- */
@@ -1280,6 +1520,7 @@ function renderEverything() {
   renderCategoryPie('incomeChart', 'incomeChartBox', 'income');
   renderCategoryPie('expenseChart', 'expenseChartBox', 'expense');
   renderDebts();
+  renderRecurring();
 }
 
 loadAll();
