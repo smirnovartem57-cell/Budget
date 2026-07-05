@@ -405,6 +405,10 @@
     vertical-align: middle;
   }
   tr:last-child td { border-bottom: none; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--text-primary); }
+  th.sortable .sort-arrow { font-size: 10px; margin-left: 3px; opacity: 0.6; }
+  tfoot td { padding: 10px; border-top: 2px solid var(--border); }
   .cat-badge {
     display: inline-block;
     background: var(--info-bg);
@@ -520,6 +524,7 @@
   <div class="page-tabs">
     <button type="button" class="page-tab-btn active" id="tabBudgetBtn">Бюджет</button>
     <button type="button" class="page-tab-btn" id="tabDebtsBtn">Долги</button>
+    <button type="button" class="page-tab-btn" id="tabShoppingBtn">Покупки</button>
   </div>
 
   <div id="budgetView">
@@ -616,14 +621,21 @@
             <thead>
               <tr>
                 <th>Расход</th>
-                <th>Название</th>
+                <th class="sortable" id="recurringSortName" data-key="name">Название</th>
                 <th>Дата платежа</th>
                 <th>Дата окончания</th>
-                <th style="text-align:right;">Сумма</th>
+                <th class="sortable" id="recurringSortAmount" data-key="amount" style="text-align:right;">Сумма</th>
                 <th></th>
               </tr>
             </thead>
             <tbody id="recurringTableBody"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="4" style="font-weight:700;">Итого</td>
+                <td id="recurringTotalFooter" style="text-align:right; font-weight:700;">0 ₽</td>
+                <td></td>
+              </tr>
+            </tfoot>
           </table>
           <div class="empty-note" id="recurringEmptyNote" style="display:none;">Нет активных ежемесячных расходов</div>
         </div>
@@ -653,9 +665,9 @@
             <thead>
               <tr>
                 <th>Дата</th>
-                <th>Категория</th>
+                <th class="sortable" id="txSortCategory" data-key="category">Категория</th>
                 <th>Комментарий</th>
-                <th style="text-align:right;">Сумма</th>
+                <th class="sortable" id="txSortAmount" data-key="amount" style="text-align:right;">Сумма</th>
                 <th></th>
               </tr>
             </thead>
@@ -727,6 +739,64 @@
       </div>
     </div>
   </div>
+
+  <div id="shoppingView" style="display:none;">
+    <div class="main-grid">
+      <!-- SHOPPING ITEM FORM -->
+      <div class="panel">
+        <h2>Новая покупка</h2>
+        <div class="form-row">
+          <label>Название</label>
+          <input type="text" id="shoppingNameInput" placeholder="Например: Новый холодильник">
+        </div>
+        <div class="form-row">
+          <label>Сумма, ₽</label>
+          <input type="number" id="shoppingAmountInput" placeholder="0" min="0" step="1">
+        </div>
+        <div class="form-row">
+          <label>Планируемая дата покупки</label>
+          <input type="date" id="shoppingDateInput" min="2020-01-01" max="2099-12-31">
+        </div>
+        <div class="form-row">
+          <label>Комментарий (необязательно)</label>
+          <input type="text" id="shoppingCommentInput" placeholder="Например: на день рождения">
+        </div>
+        <button class="btn-primary" id="shoppingSubmitBtn">Добавить в список</button>
+      </div>
+
+      <div>
+        <!-- SHOPPING LIST -->
+        <div class="panel">
+          <h2 style="justify-content:space-between;">
+            <span>Список покупок</span>
+            <span class="badge-info" id="shoppingTotalBadge">0 ₽</span>
+          </h2>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th class="sortable" id="shoppingSortName" data-key="name">Название</th>
+                  <th>Планируемая дата</th>
+                  <th>Комментарий</th>
+                  <th class="sortable" id="shoppingSortAmount" data-key="amount" style="text-align:right;">Сумма</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="shoppingTableBody"></tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" style="font-weight:700;">Итого</td>
+                  <td id="shoppingTotalFooter" style="text-align:right; font-weight:700;">0 ₽</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+            <div class="empty-note" id="shoppingEmptyNote" style="display:none;">Пока нет запланированных покупок</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="auth-modal-overlay" id="authModalOverlay">
@@ -788,6 +858,10 @@ let state = {
   viewMode: 'month',     // month | year
   txPeriod: 'sync',      // 'sync' | 'all' | 'YYYY-MM'
   txVisibleCount: 5,
+  txSort: { key: null, dir: 'asc' },        // key: 'category' | 'amount'
+  recurringSort: { key: null, dir: 'asc' }, // key: 'name' | 'amount'
+  shoppingList: [],
+  shoppingSort: { key: null, dir: 'asc' },  // key: 'name' | 'amount'
 };
 
 let currentUser = null;
@@ -880,25 +954,31 @@ async function loadAll() {
 
   const txQuery = supabaseClient.from('transactions').select('*').order('date', { ascending: false });
   const debtQuery = supabaseClient.from('debts').select('*').order('date', { ascending: false });
+  const shoppingQuery = supabaseClient.from('shopping_list').select('*').order('planned_date', { ascending: true });
   if (currentUser) {
     txQuery.eq('user_id', currentUser.id);
     debtQuery.eq('user_id', currentUser.id);
+    shoppingQuery.eq('user_id', currentUser.id);
   } else {
     txQuery.is('user_id', null);
     debtQuery.is('user_id', null);
+    shoppingQuery.is('user_id', null);
   }
 
-  const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }] = await Promise.all([
+  const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }] = await Promise.all([
     supabaseClient.from('categories').select('*').order('created_at'),
     txQuery,
     debtQuery,
+    shoppingQuery,
   ]);
   if (catErr) { toast('Ошибка загрузки категорий: ' + catErr.message); return; }
   if (txErr) { toast('Ошибка загрузки операций: ' + txErr.message); return; }
   if (debtErr) { toast('Ошибка загрузки долгов: ' + debtErr.message); return; }
+  if (shoppingErr) { toast('Ошибка загрузки списка покупок: ' + shoppingErr.message); return; }
   state.categories = cats || [];
   state.transactions = txs || [];
   state.debts = debts || [];
+  state.shoppingList = shopping || [];
 
   if (!state.selectedMonth) {
     const now = new Date();
@@ -917,12 +997,15 @@ document.getElementById('btnKindExpense').addEventListener('click', () => setKin
 /* ---------------- UI: PAGE TABS ---------------- */
 document.getElementById('tabBudgetBtn').addEventListener('click', () => switchPageTab('budget'));
 document.getElementById('tabDebtsBtn').addEventListener('click', () => switchPageTab('debts'));
+document.getElementById('tabShoppingBtn').addEventListener('click', () => switchPageTab('shopping'));
 
 function switchPageTab(tab) {
   document.getElementById('tabBudgetBtn').classList.toggle('active', tab === 'budget');
   document.getElementById('tabDebtsBtn').classList.toggle('active', tab === 'debts');
+  document.getElementById('tabShoppingBtn').classList.toggle('active', tab === 'shopping');
   document.getElementById('budgetView').style.display = tab === 'budget' ? '' : 'none';
   document.getElementById('debtsView').style.display = tab === 'debts' ? '' : 'none';
+  document.getElementById('shoppingView').style.display = tab === 'shopping' ? '' : 'none';
 }
 
 /* ---------------- UI: VIEW MODE (MONTH / YEAR) ---------------- */
@@ -1115,6 +1198,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
 
 document.getElementById('dateInput').valueAsDate = new Date();
 document.getElementById('debtDateInput').valueAsDate = new Date();
+document.getElementById('shoppingDateInput').valueAsDate = new Date();
 
 /* ---------------- DEBTS ---------------- */
 document.getElementById('debtSubmitBtn').addEventListener('click', async () => {
@@ -1181,6 +1265,71 @@ function renderDebts() {
   });
 }
 
+/* ---------------- SHOPPING LIST ---------------- */
+document.getElementById('shoppingSubmitBtn').addEventListener('click', async () => {
+  if (!isConfigured) { toast('Сначала подключите базу данных (см. README.md)'); return; }
+  const name = document.getElementById('shoppingNameInput').value.trim();
+  if (!name) { toast('Введите название покупки'); return; }
+  const amount = parseFloat(document.getElementById('shoppingAmountInput').value);
+  if (!amount || amount <= 0) { toast('Введите сумму больше нуля'); return; }
+  const plannedDate = document.getElementById('shoppingDateInput').value || null;
+  const comment = document.getElementById('shoppingCommentInput').value.trim();
+
+  const { error } = await supabaseClient.from('shopping_list').insert({
+    name, amount, planned_date: plannedDate, comment: comment || null,
+    user_id: currentUser ? currentUser.id : null,
+  });
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Добавлено в список покупок');
+  document.getElementById('shoppingNameInput').value = '';
+  document.getElementById('shoppingAmountInput').value = '';
+  document.getElementById('shoppingCommentInput').value = '';
+  await loadAll();
+});
+
+async function deleteShoppingItem(id) {
+  if (!confirm('Удалить эту покупку из списка?')) return;
+  const { error } = await supabaseClient.from('shopping_list').delete().eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Удалено');
+  await loadAll();
+}
+
+function renderShoppingList() {
+  const { key, dir } = state.shoppingSort;
+  const list = state.shoppingList.slice();
+  if (key === 'amount') {
+    list.sort((a, b) => (Number(a.amount) - Number(b.amount)) * (dir === 'asc' ? 1 : -1));
+  } else if (key === 'name') {
+    list.sort((a, b) => a.name.localeCompare(b.name) * (dir === 'asc' ? 1 : -1));
+  } else {
+    list.sort((a, b) => (a.planned_date || '').localeCompare(b.planned_date || ''));
+  }
+  updateSortArrows(state.shoppingSort, ['shoppingSortName', 'shoppingSortAmount']);
+
+  const total = state.shoppingList.reduce((s, item) => s + Number(item.amount), 0);
+  document.getElementById('shoppingTotalBadge').textContent = fmt.format(total);
+  document.getElementById('shoppingTotalFooter').textContent = fmt.format(total);
+
+  const tbody = document.getElementById('shoppingTableBody');
+  tbody.innerHTML = '';
+  document.getElementById('shoppingEmptyNote').style.display = list.length ? 'none' : 'block';
+  list.forEach(item => {
+    const tr = document.createElement('tr');
+    const dateFmt = item.planned_date
+      ? new Date(item.planned_date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      : '—';
+    tr.innerHTML = `
+      <td><span class="cat-badge">${item.name}</span></td>
+      <td>${dateFmt}</td>
+      <td class="comment-cell">${item.comment || ''}</td>
+      <td style="text-align:right;" class="amount-expense">${fmt.format(item.amount)}</td>
+      <td><button class="del-btn" onclick="deleteShoppingItem('${item.id}')">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
 /* ---------------- RECURRING EXPENSES ---------------- */
 async function deleteRecurringGroup(groupId) {
   if (!confirm('Удалить весь ежемесячный расход (все платежи)?')) return;
@@ -1205,9 +1354,16 @@ function renderRecurring() {
   });
 
   const today = new Date().toISOString().slice(0, 10);
-  const active = Object.entries(groups)
-    .filter(([, g]) => !g.endDate || g.endDate >= today)
-    .sort((a, b) => a[1].minDate.localeCompare(b[1].minDate));
+  const { key, dir } = state.recurringSort;
+  const active = Object.entries(groups).filter(([, g]) => !g.endDate || g.endDate >= today);
+  if (key === 'amount') {
+    active.sort((a, b) => (a[1].amount - b[1].amount) * (dir === 'asc' ? 1 : -1));
+  } else if (key === 'name') {
+    active.sort((a, b) => (a[1].subcategory || '').localeCompare(b[1].subcategory || '') * (dir === 'asc' ? 1 : -1));
+  } else {
+    active.sort((a, b) => a[1].minDate.localeCompare(b[1].minDate));
+  }
+  updateSortArrows(state.recurringSort, ['recurringSortName', 'recurringSortAmount']);
 
   const tbody = document.getElementById('recurringTableBody');
   tbody.innerHTML = '';
@@ -1229,6 +1385,7 @@ function renderRecurring() {
     tbody.appendChild(tr);
   });
   document.getElementById('recurringTotalBadge').textContent = fmt.format(total);
+  document.getElementById('recurringTotalFooter').textContent = fmt.format(total);
 }
 
 /* ---------------- DELETE TRANSACTION ---------------- */
@@ -1353,6 +1510,38 @@ document.getElementById('loadMoreBtn').addEventListener('click', () => {
   renderTable();
 });
 
+function setupSortableHeader(elId, sortState, renderFn) {
+  const th = document.getElementById(elId);
+  th.addEventListener('click', () => {
+    if (sortState.key === th.dataset.key) {
+      sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortState.key = th.dataset.key;
+      sortState.dir = 'asc';
+    }
+    renderFn();
+  });
+}
+setupSortableHeader('txSortCategory', state.txSort, renderTable);
+setupSortableHeader('txSortAmount', state.txSort, renderTable);
+setupSortableHeader('recurringSortName', state.recurringSort, renderRecurring);
+setupSortableHeader('recurringSortAmount', state.recurringSort, renderRecurring);
+setupSortableHeader('shoppingSortName', state.shoppingSort, renderShoppingList);
+setupSortableHeader('shoppingSortAmount', state.shoppingSort, renderShoppingList);
+
+function updateSortArrows(sortState, headerIds) {
+  headerIds.forEach(id => {
+    const th = document.getElementById(id);
+    th.querySelectorAll('.sort-arrow').forEach(el => el.remove());
+    if (sortState.key === th.dataset.key) {
+      const arrow = document.createElement('span');
+      arrow.className = 'sort-arrow';
+      arrow.textContent = sortState.dir === 'asc' ? '▲' : '▼';
+      th.appendChild(arrow);
+    }
+  });
+}
+
 function populateTxPeriodSelect() {
   const sel = document.getElementById('txPeriodSelect');
   const prevValue = sel.value || state.txPeriod;
@@ -1427,7 +1616,16 @@ function renderTable() {
   let list = filterMonths
     ? state.transactions.filter(t => filterMonths.includes(monthKey(t.date)))
     : state.transactions.slice();
-  list = list.sort((a,b) => b.date.localeCompare(a.date));
+
+  const { key, dir } = state.txSort;
+  if (key === 'amount') {
+    list.sort((a, b) => (Number(a.amount) - Number(b.amount)) * (dir === 'asc' ? 1 : -1));
+  } else if (key === 'category') {
+    list.sort((a, b) => txCategoryLabel(a).localeCompare(txCategoryLabel(b)) * (dir === 'asc' ? 1 : -1));
+  } else {
+    list.sort((a, b) => b.date.localeCompare(a.date));
+  }
+  updateSortArrows(state.txSort, ['txSortCategory', 'txSortAmount']);
 
   const visible = list.slice(0, state.txVisibleCount);
   tbody.innerHTML = '';
@@ -1527,7 +1725,7 @@ function renderCategoryPie(canvasId, boxId, kind) {
     box.innerHTML = `<canvas id="${canvasId}"></canvas>`;
   }
   const byCategory = {};
-  periodTx.forEach(t => { const label = txCategoryLabel(t); byCategory[label] = (byCategory[label] || 0) + Number(t.amount); });
+  periodTx.forEach(t => { byCategory[t.category] = (byCategory[t.category] || 0) + Number(t.amount); });
   const labels = Object.keys(byCategory);
   const data = Object.values(byCategory);
 
@@ -1560,6 +1758,7 @@ function renderEverything() {
   renderCategoryPie('expenseChart', 'expenseChartBox', 'expense');
   renderDebts();
   renderRecurring();
+  renderShoppingList();
 }
 
 loadAll();
