@@ -646,7 +646,17 @@
     .summary-grid { gap: 10px; }
 
     table { font-size: 12.5px; }
-    th, td { padding: 8px 6px; }
+    th, td { padding: 8px 4px; }
+    .cat-badge { padding: 3px 7px; }
+    .del-btn { padding: 4px 4px; }
+    .comment-cell {
+      display: inline-block;
+      max-width: 90px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: bottom;
+    }
   }
 </style>
 </head>
@@ -801,10 +811,8 @@
           <table>
             <thead>
               <tr>
-                <th>Расход</th>
-                <th class="sortable" id="recurringSortName" data-key="name">Название</th>
+                <th class="sortable" id="recurringSortName" data-key="name">Расход</th>
                 <th class="sortable" id="recurringSortDate" data-key="date">Дата платежа</th>
-                <th>Дата окончания</th>
                 <th class="sortable" id="recurringSortAmount" data-key="amount" style="text-align:right;">Сумма</th>
                 <th></th>
               </tr>
@@ -812,7 +820,7 @@
             <tbody id="recurringTableBody"></tbody>
             <tfoot>
               <tr>
-                <td colspan="4" style="font-weight:700;">Итого</td>
+                <td colspan="2" style="font-weight:700;">Итого</td>
                 <td id="recurringTotalFooter" style="text-align:right; font-weight:700;">0 ₽</td>
                 <td></td>
               </tr>
@@ -2387,12 +2395,10 @@ function renderRecurring() {
     total += g.amount;
     const tr = document.createElement('tr');
     const startFmt = new Date(g.minDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const endFmt = g.endDate ? new Date(g.endDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+    const endFmt = g.endDate ? new Date(g.endDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
     tr.innerHTML = `
-      <td>${g.category}</td>
-      <td>${g.subcategory || '—'}</td>
-      <td>${startFmt}</td>
-      <td>${endFmt}</td>
+      <td><span class="cat-badge">${g.subcategory ? `${g.category} · ${g.subcategory}` : g.category}</span></td>
+      <td>${startFmt}${endFmt ? `<div class="days-remaining">до ${endFmt}</div>` : ''}</td>
       <td style="text-align:right;" class="amount-expense">${fmt.format(g.amount)}</td>
       <td><button class="del-btn" onclick="deleteRecurringGroup('${groupId}')">✕</button></td>
     `;
