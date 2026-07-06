@@ -1038,11 +1038,12 @@ let state = {
 
 let currentUser = null;
 
-function toast(msg) {
+function toast(msg, duration = 2200) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
+  clearTimeout(t.__hideTimer);
+  t.__hideTimer = setTimeout(() => t.classList.remove('show'), duration);
 }
 
 function monthKey(dateStr) {
@@ -1664,7 +1665,15 @@ if (SpeechRecognitionApi) {
     recognition.addEventListener('error', (e) => {
       const wasSelfAborted = e.error === 'aborted' && !activeRecognition;
       stopListening();
-      if (!wasSelfAborted) toast('Не удалось распознать голос (' + e.error + ')');
+      if (wasSelfAborted) return;
+      const messages = {
+        'not-allowed': 'Доступ к микрофону запрещён. Разрешите доступ к микрофону для этого сайта в настройках браузера.',
+        'service-not-allowed': 'Доступ к микрофону запрещён. Разрешите доступ к микрофону для этого сайта в настройках браузера.',
+        'no-speech': 'Не расслышал — попробуйте ещё раз и говорите сразу после нажатия на микрофон.',
+        'audio-capture': 'Микрофон не найден. Проверьте, что он подключён и доступен браузеру.',
+        'network': 'Распознавание речи требует подключения к интернету — проверьте соединение.',
+      };
+      toast(messages[e.error] || `Не удалось распознать голос (${e.error})`, 4500);
     });
 
     micTimeoutId = setTimeout(() => {
