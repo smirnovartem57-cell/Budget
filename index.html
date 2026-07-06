@@ -675,7 +675,7 @@
               <tr>
                 <th>Расход</th>
                 <th class="sortable" id="recurringSortName" data-key="name">Название</th>
-                <th>Дата платежа</th>
+                <th class="sortable" id="recurringSortDate" data-key="date">Дата платежа</th>
                 <th>Дата окончания</th>
                 <th class="sortable" id="recurringSortAmount" data-key="amount" style="text-align:right;">Сумма</th>
                 <th></th>
@@ -717,7 +717,7 @@
           <table>
             <thead>
               <tr>
-                <th>Дата</th>
+                <th class="sortable" id="txSortDate" data-key="date">Дата</th>
                 <th class="sortable" id="txSortCategory" data-key="category">Категория</th>
                 <th>Комментарий</th>
                 <th class="sortable" id="txSortAmount" data-key="amount" style="text-align:right;">Сумма</th>
@@ -777,7 +777,7 @@
             <table>
               <thead>
                 <tr>
-                  <th>Дата</th>
+                  <th class="sortable" id="debtsSortDate" data-key="date">Дата</th>
                   <th>Кто должен</th>
                   <th>Комментарий</th>
                   <th style="text-align:right;">Сумма</th>
@@ -829,7 +829,7 @@
               <thead>
                 <tr>
                   <th class="sortable" id="shoppingSortName" data-key="name">Название</th>
-                  <th>Планируемая дата</th>
+                  <th class="sortable" id="shoppingSortDate" data-key="date">Планируемая дата</th>
                   <th>Комментарий</th>
                   <th class="sortable" id="shoppingSortAmount" data-key="amount" style="text-align:right;">Сумма</th>
                   <th></th>
@@ -857,6 +857,10 @@
       <div class="panel">
         <h2>Ожидаемый доход</h2>
         <div class="form-row">
+          <label>Категория</label>
+          <select id="incomeCategorySelect"></select>
+        </div>
+        <div class="form-row">
           <label>Название</label>
           <input type="text" id="incomeNameInput" placeholder="Например: Оплата от клиента">
         </div>
@@ -867,6 +871,16 @@
         <div class="form-row">
           <label>Ожидаемая дата</label>
           <input type="date" id="incomeDateInput" min="2020-01-01" max="2099-12-31">
+        </div>
+        <div class="form-row">
+          <label class="recurring-check-label">
+            <input type="checkbox" id="incomeRecurringCheckbox">
+            Ежемесячный доход
+          </label>
+          <div id="incomeRecurringEndDateRow" style="display:none;margin-top:8px;">
+            <label>Дата окончания</label>
+            <input type="date" id="incomeRecurringEndDateInput" min="2020-01-01" max="2099-12-31">
+          </div>
         </div>
         <div class="form-row">
           <label>Комментарий (необязательно)</label>
@@ -886,8 +900,9 @@
             <table>
               <thead>
                 <tr>
+                  <th>Категория</th>
                   <th class="sortable" id="incomeSortName" data-key="name">Название</th>
-                  <th>Ожидаемая дата</th>
+                  <th class="sortable" id="incomeSortDate" data-key="date">Ожидаемая дата</th>
                   <th>Комментарий</th>
                   <th class="sortable" id="incomeSortAmount" data-key="amount" style="text-align:right;">Сумма</th>
                   <th></th>
@@ -896,7 +911,7 @@
               <tbody id="incomeTableBody"></tbody>
               <tfoot>
                 <tr>
-                  <td colspan="3" style="font-weight:700;">Итого</td>
+                  <td colspan="4" style="font-weight:700;">Итого</td>
                   <td id="incomeTotalFooter" style="text-align:right; font-weight:700;">0 ₽</td>
                   <td></td>
                 </tr>
@@ -906,6 +921,25 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:14px; margin-top:20px;">
+      <div class="summary-card income">
+        <div class="label">Текущий месяц</div>
+        <div class="value" id="incomeCurrentMonthValue">—</div>
+      </div>
+      <div class="summary-card income">
+        <div class="label" id="incomeReportMonthLabel">Отчётный месяц</div>
+        <div class="value" id="incomeReportMonthValue">—</div>
+        <div class="growth-indicator" id="incomeCompareGrowth"></div>
+      </div>
+    </div>
+
+    <div style="height:20px;"></div>
+
+    <div class="panel">
+      <h2>Динамика дохода <span class="badge-info" id="incomeDynamicsBadge">12 мес</span></h2>
+      <div class="chart-box"><canvas id="incomeDynamicsChart"></canvas></div>
     </div>
   </div>
 </div>
@@ -969,12 +1003,13 @@ let state = {
   viewMode: 'month',     // month | year
   txPeriod: 'sync',      // 'sync' | 'all' | 'YYYY-MM'
   txVisibleCount: 5,
-  txSort: { key: null, dir: 'asc' },        // key: 'category' | 'amount'
-  recurringSort: { key: null, dir: 'asc' }, // key: 'name' | 'amount'
+  txSort: { key: null, dir: 'asc' },        // key: 'category' | 'amount' | 'date'
+  recurringSort: { key: null, dir: 'asc' }, // key: 'name' | 'amount' | 'date'
   shoppingList: [],
-  shoppingSort: { key: null, dir: 'asc' },  // key: 'name' | 'amount'
+  shoppingSort: { key: null, dir: 'asc' },  // key: 'name' | 'amount' | 'date'
+  debtsSort: { key: null, dir: 'asc' },     // key: 'date'
   expectedIncome: [],
-  incomeSort: { key: null, dir: 'asc' },    // key: 'name' | 'amount'
+  incomeSort: { key: null, dir: 'asc' },    // key: 'name' | 'amount' | 'date'
 };
 
 let currentUser = null;
@@ -988,6 +1023,12 @@ function toast(msg) {
 
 function monthKey(dateStr) {
   return dateStr.slice(0, 7);
+}
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+function hasHappened(t) {
+  return t.date <= todayStr();
 }
 function monthLabel(key) {
   const [y, m] = key.split('-');
@@ -1018,7 +1059,7 @@ function previousPeriodMonths() {
 function sumForMonths(monthKeys, kind) {
   const set = new Set(monthKeys);
   return state.transactions
-    .filter(t => t.kind === kind && set.has(monthKey(t.date)))
+    .filter(t => t.kind === kind && set.has(monthKey(t.date)) && hasHappened(t))
     .reduce((s,t) => s + Number(t.amount), 0);
 }
 
@@ -1172,6 +1213,28 @@ document.getElementById('recurringCheckbox').addEventListener('change', (e) => {
     endDateInput.value = `${new Date().getFullYear()}-12-31`;
   }
 });
+
+document.getElementById('incomeRecurringCheckbox').addEventListener('change', (e) => {
+  document.getElementById('incomeRecurringEndDateRow').style.display = e.target.checked ? 'block' : 'none';
+  const endDateInput = document.getElementById('incomeRecurringEndDateInput');
+  if (e.target.checked && !endDateInput.value) {
+    endDateInput.value = `${new Date().getFullYear()}-12-31`;
+  }
+});
+
+function populateIncomeCategorySelect() {
+  const sel = document.getElementById('incomeCategorySelect');
+  const prev = sel.value;
+  const list = state.categories.filter(c => c.kind === 'income');
+  sel.innerHTML = '';
+  list.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.name;
+    opt.textContent = c.name;
+    sel.appendChild(opt);
+  });
+  if (prev && list.some(c => c.name === prev)) sel.value = prev;
+}
 
 function generateMonthlyDates(startDateStr, endDateStr) {
   const start = new Date(startDateStr + 'T00:00:00');
@@ -1385,7 +1448,11 @@ function renderDebts() {
   document.getElementById('debtsTotalBadge').textContent = fmt.format(total);
 
   const tbody = document.getElementById('debtsTableBody');
-  const list = state.debts.slice().sort((a, b) => b.date.localeCompare(a.date));
+  const { key, dir } = state.debtsSort;
+  const list = state.debts.slice().sort((a, b) => key === 'date'
+    ? a.date.localeCompare(b.date) * (dir === 'asc' ? 1 : -1)
+    : b.date.localeCompare(a.date));
+  updateSortArrows(state.debtsSort, ['debtsSortDate']);
   tbody.innerHTML = '';
   document.getElementById('debtsEmptyNote').style.display = list.length ? 'none' : 'block';
   list.forEach(d => {
@@ -1504,10 +1571,12 @@ function renderShoppingList() {
     list.sort((a, b) => (Number(a.amount) - Number(b.amount)) * (dir === 'asc' ? 1 : -1));
   } else if (key === 'name') {
     list.sort((a, b) => a.name.localeCompare(b.name) * (dir === 'asc' ? 1 : -1));
+  } else if (key === 'date') {
+    list.sort((a, b) => (a.planned_date || '').localeCompare(b.planned_date || '') * (dir === 'asc' ? 1 : -1));
   } else {
     list.sort((a, b) => (a.planned_date || '').localeCompare(b.planned_date || ''));
   }
-  updateSortArrows(state.shoppingSort, ['shoppingSortName', 'shoppingSortAmount']);
+  updateSortArrows(state.shoppingSort, ['shoppingSortName', 'shoppingSortDate', 'shoppingSortAmount']);
 
   const total = state.shoppingList.reduce((s, item) => s + Number(item.amount), 0);
   document.getElementById('shoppingTotalBadge').textContent = fmt.format(total);
@@ -1541,22 +1610,40 @@ function renderShoppingList() {
 /* ---------------- EXPECTED INCOME ---------------- */
 document.getElementById('incomeSubmitBtn').addEventListener('click', async () => {
   if (!isConfigured) { toast('Сначала подключите базу данных (см. README.md)'); return; }
+  const category = document.getElementById('incomeCategorySelect').value;
+  if (!category) { toast('Выберите категорию'); return; }
   const name = document.getElementById('incomeNameInput').value.trim();
   if (!name) { toast('Введите название'); return; }
   const amount = parseFloat(document.getElementById('incomeAmountInput').value);
   if (!amount || amount <= 0) { toast('Введите сумму больше нуля'); return; }
   const expectedDate = document.getElementById('incomeDateInput').value || null;
   const comment = document.getElementById('incomeCommentInput').value.trim();
+  const userId = currentUser ? currentUser.id : null;
 
-  const { error } = await supabaseClient.from('expected_income').insert({
-    name, amount, expected_date: expectedDate, comment: comment || null,
-    user_id: currentUser ? currentUser.id : null,
-  });
+  const isRecurring = document.getElementById('incomeRecurringCheckbox').checked;
+  let payloads;
+  if (isRecurring) {
+    if (!expectedDate) { toast('Укажите ожидаемую дату'); return; }
+    const endDate = document.getElementById('incomeRecurringEndDateInput').value;
+    if (!endDate || endDate < expectedDate) { toast('Укажите корректную дату окончания'); return; }
+    const groupId = crypto.randomUUID();
+    payloads = generateMonthlyDates(expectedDate, endDate).map(d => ({
+      category, name, amount, expected_date: d, comment: comment || null,
+      is_recurring: true, recurring_end_date: endDate, recurring_group_id: groupId, user_id: userId,
+    }));
+  } else {
+    payloads = [{ category, name, amount, expected_date: expectedDate, comment: comment || null, user_id: userId }];
+  }
+
+  const { error } = await supabaseClient.from('expected_income').insert(payloads);
   if (error) { toast('Ошибка: ' + error.message); return; }
-  toast('Добавлено в ожидаемые доходы');
+  toast(isRecurring ? `Добавлено доходов: ${payloads.length}` : 'Добавлено в ожидаемые доходы');
   document.getElementById('incomeNameInput').value = '';
   document.getElementById('incomeAmountInput').value = '';
   document.getElementById('incomeCommentInput').value = '';
+  document.getElementById('incomeRecurringCheckbox').checked = false;
+  document.getElementById('incomeRecurringEndDateRow').style.display = 'none';
+  document.getElementById('incomeRecurringEndDateInput').value = '';
   await loadAll();
 });
 
@@ -1598,7 +1685,7 @@ async function markIncomeReceived(id) {
   if (!item) return;
   if (!confirm(`Отметить «${item.name}» как полученное и добавить в доходы?`)) return;
   const { error: insErr } = await supabaseClient.from('transactions').insert({
-    kind: 'income', category: 'Другое', subcategory: null,
+    kind: 'income', category: item.category || 'Другое', subcategory: null,
     amount: item.amount, date: new Date().toISOString().slice(0, 10),
     comment: item.name, user_id: currentUser ? currentUser.id : null,
   });
@@ -1616,10 +1703,12 @@ function renderExpectedIncome() {
     list.sort((a, b) => (Number(a.amount) - Number(b.amount)) * (dir === 'asc' ? 1 : -1));
   } else if (key === 'name') {
     list.sort((a, b) => a.name.localeCompare(b.name) * (dir === 'asc' ? 1 : -1));
+  } else if (key === 'date') {
+    list.sort((a, b) => (a.expected_date || '').localeCompare(b.expected_date || '') * (dir === 'asc' ? 1 : -1));
   } else {
     list.sort((a, b) => (a.expected_date || '').localeCompare(b.expected_date || ''));
   }
-  updateSortArrows(state.incomeSort, ['incomeSortName', 'incomeSortAmount']);
+  updateSortArrows(state.incomeSort, ['incomeSortName', 'incomeSortDate', 'incomeSortAmount']);
 
   const total = state.expectedIncome.reduce((s, item) => s + Number(item.amount), 0);
   document.getElementById('incomeTotalBadge').textContent = fmt.format(total);
@@ -1632,6 +1721,7 @@ function renderExpectedIncome() {
     const tr = document.createElement('tr');
     const remaining = item.expected_date ? daysRemainingLabel(item.expected_date) : '';
     tr.innerHTML = `
+      <td>${item.category || ''}${item.is_recurring ? '<div class="days-remaining">🔁 Ежемесячно</div>' : ''}</td>
       <td><input type="text" class="inline-name-input" value="${escapeAttr(item.name)}" onchange="updateIncomeField('${item.id}','name', this.value)"></td>
       <td>
         <input type="date" class="shopping-date-input" value="${item.expected_date || ''}" min="2020-01-01" max="2099-12-31" onchange="updateIncomeDate('${item.id}', this.value)">
@@ -1639,7 +1729,10 @@ function renderExpectedIncome() {
       </td>
       <td class="comment-cell">${item.comment || ''}</td>
       <td style="text-align:right;">
-        <input type="number" class="inline-amount-input" value="${item.amount}" min="0" step="1" onchange="updateIncomeField('${item.id}','amount', this.value)">
+        <input type="text" inputmode="numeric" class="inline-amount-input" value="${fmt.format(item.amount)}"
+          onfocus="this.value = String(${item.amount}).replace(/\s/g,'')"
+          onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${item.amount})"
+          onchange="updateIncomeField('${item.id}','amount', this.value.replace(/\s/g,'').replace(',', '.'))">
       </td>
       <td style="white-space:nowrap;">
         <button class="btn-tiny" onclick="markIncomeReceived('${item.id}')">Получено</button>
@@ -1648,6 +1741,58 @@ function renderExpectedIncome() {
     `;
     tbody.appendChild(tr);
   });
+}
+
+let incomeDynamicsChartInstance;
+function renderIncomeDynamics() {
+  const labels = last12Months();
+  const income = labels.map(m => sumForMonths([m], 'income'));
+
+  const ctx = document.getElementById('incomeDynamicsChart');
+  if (incomeDynamicsChartInstance) incomeDynamicsChartInstance.destroy();
+  incomeDynamicsChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels.map(m => monthLabel(m).replace(/^(\S+)/, s => s.charAt(0).toUpperCase()+s.slice(1))),
+      datasets: [
+        { label: 'Доход', data: income, backgroundColor: '#2E7D5B99', borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { callback: v => fmt.format(v) }, grid: { color: '#E7E5E1' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+
+  const currentMonth = todayStr().slice(0, 7);
+  const currentIncome = sumForMonths([currentMonth], 'income');
+  const reportMonths = activeMonths();
+  const reportIncome = sumForMonths(reportMonths, 'income');
+
+  document.getElementById('incomeCurrentMonthValue').textContent = fmt.format(currentIncome);
+  document.getElementById('incomeReportMonthLabel').textContent = state.viewMode === 'year'
+    ? `Отчётный год (${state.selectedYear})`
+    : `Отчётный месяц (${monthLabel(state.selectedMonth)})`;
+  document.getElementById('incomeReportMonthValue').textContent = fmt.format(reportIncome);
+
+  const gEl = document.getElementById('incomeCompareGrowth');
+  if (reportMonths.includes(currentMonth)) {
+    gEl.textContent = '';
+    gEl.className = 'growth-indicator';
+  } else if (!reportIncome) {
+    gEl.textContent = currentIncome > 0 ? 'нет дохода за отчётный период для сравнения' : '';
+    gEl.className = 'growth-indicator';
+  } else {
+    const pct = ((currentIncome - reportIncome) / reportIncome) * 100;
+    const dir = pct > 0.05 ? 'up' : (pct < -0.05 ? 'down' : '');
+    const arrow = pct > 0.05 ? '▲' : (pct < -0.05 ? '▼' : '•');
+    gEl.textContent = `${arrow} ${Math.abs(pct).toFixed(1)}% к отчётному периоду`;
+    gEl.className = 'growth-indicator ' + dir;
+  }
 }
 
 /* ---------------- RECURRING EXPENSES ---------------- */
@@ -1680,10 +1825,12 @@ function renderRecurring() {
     active.sort((a, b) => (a[1].amount - b[1].amount) * (dir === 'asc' ? 1 : -1));
   } else if (key === 'name') {
     active.sort((a, b) => (a[1].subcategory || '').localeCompare(b[1].subcategory || '') * (dir === 'asc' ? 1 : -1));
+  } else if (key === 'date') {
+    active.sort((a, b) => a[1].minDate.localeCompare(b[1].minDate) * (dir === 'asc' ? 1 : -1));
   } else {
     active.sort((a, b) => a[1].minDate.localeCompare(b[1].minDate));
   }
-  updateSortArrows(state.recurringSort, ['recurringSortName', 'recurringSortAmount']);
+  updateSortArrows(state.recurringSort, ['recurringSortName', 'recurringSortDate', 'recurringSortAmount']);
 
   const tbody = document.getElementById('recurringTableBody');
   tbody.innerHTML = '';
@@ -1842,13 +1989,18 @@ function setupSortableHeader(elId, sortState, renderFn) {
     renderFn();
   });
 }
+setupSortableHeader('txSortDate', state.txSort, renderTable);
 setupSortableHeader('txSortCategory', state.txSort, renderTable);
 setupSortableHeader('txSortAmount', state.txSort, renderTable);
 setupSortableHeader('recurringSortName', state.recurringSort, renderRecurring);
+setupSortableHeader('recurringSortDate', state.recurringSort, renderRecurring);
 setupSortableHeader('recurringSortAmount', state.recurringSort, renderRecurring);
 setupSortableHeader('shoppingSortName', state.shoppingSort, renderShoppingList);
+setupSortableHeader('shoppingSortDate', state.shoppingSort, renderShoppingList);
 setupSortableHeader('shoppingSortAmount', state.shoppingSort, renderShoppingList);
+setupSortableHeader('debtsSortDate', state.debtsSort, renderDebts);
 setupSortableHeader('incomeSortName', state.incomeSort, renderExpectedIncome);
+setupSortableHeader('incomeSortDate', state.incomeSort, renderExpectedIncome);
 setupSortableHeader('incomeSortAmount', state.incomeSort, renderExpectedIncome);
 
 function updateSortArrows(sortState, headerIds) {
@@ -1935,19 +2087,22 @@ function txCategoryLabel(t) {
 function renderTable() {
   const tbody = document.getElementById('txTableBody');
   const filterMonths = txActiveMonths();
-  let list = filterMonths
+  let list = (filterMonths
     ? state.transactions.filter(t => filterMonths.includes(monthKey(t.date)))
-    : state.transactions.slice();
+    : state.transactions.slice()
+  ).filter(hasHappened);
 
   const { key, dir } = state.txSort;
   if (key === 'amount') {
     list.sort((a, b) => (Number(a.amount) - Number(b.amount)) * (dir === 'asc' ? 1 : -1));
   } else if (key === 'category') {
     list.sort((a, b) => txCategoryLabel(a).localeCompare(txCategoryLabel(b)) * (dir === 'asc' ? 1 : -1));
+  } else if (key === 'date') {
+    list.sort((a, b) => a.date.localeCompare(b.date) * (dir === 'asc' ? 1 : -1));
   } else {
     list.sort((a, b) => b.date.localeCompare(a.date));
   }
-  updateSortArrows(state.txSort, ['txSortCategory', 'txSortAmount']);
+  updateSortArrows(state.txSort, ['txSortDate', 'txSortCategory', 'txSortAmount']);
 
   const visible = list.slice(0, state.txVisibleCount);
   tbody.innerHTML = '';
@@ -2036,7 +2191,7 @@ const PIE_COLORS = ['#185FA5','#5B94C9','#B7D6F2','#232733','#9C9A94','#2E7D5B',
 
 function renderCategoryPie(canvasId, boxId, kind) {
   const months = activeMonths();
-  const periodTx = state.transactions.filter(t => months.includes(monthKey(t.date)) && t.kind === kind);
+  const periodTx = state.transactions.filter(t => months.includes(monthKey(t.date)) && t.kind === kind && hasHappened(t));
   const box = document.getElementById(boxId);
   const periodLabel = state.viewMode === 'year' ? state.selectedYear : monthLabel(state.selectedMonth);
   if (!periodTx.length) {
@@ -2073,6 +2228,7 @@ function renderEverything() {
   populateYearSelect();
   populateTxPeriodSelect();
   populateCategorySelect();
+  populateIncomeCategorySelect();
   renderSummary();
   renderTable();
   renderDynamicsChart();
@@ -2082,6 +2238,7 @@ function renderEverything() {
   renderRecurring();
   renderShoppingList();
   renderExpectedIncome();
+  renderIncomeDynamics();
 }
 
 loadAll();
