@@ -1576,13 +1576,13 @@ async function markShoppingBought(id) {
 
 /* ---------------- TODAY'S SHOPPING NOTEPAD ---------------- */
 async function addShoppingNote(text) {
-  const trimmed = text.trim();
-  if (!trimmed) return;
+  const items = text.split(',').map(s => s.trim()).filter(Boolean);
+  if (!items.length) return;
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
-  const { error } = await supabaseClient.from('shopping_notes').insert({
-    text: trimmed, user_id: currentUser ? currentUser.id : null,
-  });
+  const rows = items.map(item => ({ text: item, user_id: currentUser ? currentUser.id : null }));
+  const { error } = await supabaseClient.from('shopping_notes').insert(rows);
   if (error) { toast('Ошибка: ' + error.message); return; }
+  toast(items.length > 1 ? `Добавлено пунктов: ${items.length}` : 'Добавлено');
   await loadAll();
 }
 
@@ -1633,33 +1633,53 @@ document.getElementById('notepadInput').addEventListener('keydown', async (e) =>
 
 const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
 const notepadMicBtn = document.getElementById('notepadMicBtn');
+let activeRecognition = null;
+let micTimeoutId = null;
+
+function stopListening() {
+  if (micTimeoutId) { clearTimeout(micTimeoutId); micTimeoutId = null; }
+  notepadMicBtn.classList.remove('listening');
+  const r = activeRecognition;
+  activeRecognition = null;
+  if (r) { try { r.abort(); } catch (e) {} }
+}
+
 if (SpeechRecognitionApi) {
-  const recognition = new SpeechRecognitionApi();
-  recognition.lang = 'ru-RU';
-  recognition.continuous = false;
-  recognition.interimResults = false;
-  let listening = false;
-
-  recognition.addEventListener('result', async (e) => {
-    const transcript = e.results[0][0].transcript;
-    await addShoppingNote(transcript);
-  });
-  recognition.addEventListener('end', () => {
-    listening = false;
-    notepadMicBtn.classList.remove('listening');
-  });
-  recognition.addEventListener('error', () => {
-    listening = false;
-    notepadMicBtn.classList.remove('listening');
-    toast('Не удалось распознать голос');
-  });
-
   notepadMicBtn.addEventListener('click', () => {
-    if (listening) { recognition.stop(); return; }
+    if (activeRecognition) { stopListening(); return; }
     if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
-    listening = true;
-    notepadMicBtn.classList.add('listening');
-    recognition.start();
+
+    // A fresh instance per attempt avoids browsers getting stuck when an old
+    // instance is reused across start/stop cycles.
+    const recognition = new SpeechRecognitionApi();
+    recognition.lang = 'ru-RU';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.addEventListener('result', async (e) => {
+      const transcript = e.results[0][0].transcript;
+      await addShoppingNote(transcript);
+    });
+    recognition.addEventListener('end', stopListening);
+    recognition.addEventListener('error', (e) => {
+      const wasSelfAborted = e.error === 'aborted' && !activeRecognition;
+      stopListening();
+      if (!wasSelfAborted) toast('Не удалось распознать голос (' + e.error + ')');
+    });
+
+    micTimeoutId = setTimeout(() => {
+      toast('Голос не распознан, попробуйте ещё раз');
+      stopListening();
+    }, 8000);
+
+    try {
+      activeRecognition = recognition;
+      notepadMicBtn.classList.add('listening');
+      recognition.start();
+    } catch (err) {
+      stopListening();
+      toast('Не удалось запустить микрофон');
+    }
   });
 } else {
   notepadMicBtn.addEventListener('click', () => toast('Голосовой ввод не поддерживается в этом браузере'));
