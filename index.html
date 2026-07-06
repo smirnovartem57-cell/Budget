@@ -1066,8 +1066,8 @@
   <div class="auth-modal">
     <h2>Вход</h2>
     <div class="form-row">
-      <label>Email</label>
-      <input type="email" id="authEmailInput" placeholder="you@example.com">
+      <label>Email или логин</label>
+      <input type="text" autocapitalize="off" autocorrect="off" id="authEmailInput" placeholder="you@example.com или логин">
     </div>
     <div class="form-row">
       <label>Пароль</label>
@@ -1422,9 +1422,9 @@ const authErrorMessages = {
 };
 document.getElementById('authSubmitBtn').addEventListener('click', async () => {
   if (!isConfigured) { toast('База данных недоступна — обновите страницу'); return; }
-  const email = document.getElementById('authEmailInput').value.trim();
+  const emailOrLogin = document.getElementById('authEmailInput').value.trim();
   const password = document.getElementById('authPasswordInput').value;
-  if (!email || !password) { toast('Введите email и пароль'); return; }
+  if (!emailOrLogin || !password) { toast('Введите email/логин и пароль'); return; }
   const submitBtn = document.getElementById('authSubmitBtn');
   if (submitBtn.disabled) return;
   submitBtn.disabled = true;
@@ -1432,6 +1432,22 @@ document.getElementById('authSubmitBtn').addEventListener('click', async () => {
   submitBtn.textContent = 'Входим…';
   let result;
   try {
+    let email = emailOrLogin;
+    if (!emailOrLogin.includes('@')) {
+      // Not an email — resolve it as a username via the usernames lookup table.
+      const { data: loginRow, error: loginErr } = await withTimeout(
+        supabaseClient.from('usernames').select('email').ilike('username', emailOrLogin).maybeSingle(),
+        12000,
+        'Сервер не отвечает — проверьте интернет-соединение и попробуйте снова'
+      );
+      if (loginErr || !loginRow) {
+        toast('Логин не найден');
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalLabel;
+        return;
+      }
+      email = loginRow.email;
+    }
     // A stalled connection can leave a fetch neither resolving nor rejecting —
     // withTimeout guarantees an answer either way instead of leaving the button
     // (and the user) waiting forever with no feedback at all.
