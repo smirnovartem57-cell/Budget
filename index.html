@@ -1887,15 +1887,12 @@ document.getElementById('notepadInput').addEventListener('keydown', async (e) =>
   }
 });
 
-// Safari's SpeechRecognition implementation is present but known to be
-// unreliable (denying the mic permission can leave the page badly stuck) —
-// treat it as unsupported there and point people to a Chromium-based browser.
-const isSafariBrowser = /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS|EdgiOS|Android/.test(navigator.userAgent);
-const SpeechRecognitionApi = isSafariBrowser ? null : (window.SpeechRecognition || window.webkitSpeechRecognition);
+const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
 const notepadMicBtn = document.getElementById('notepadMicBtn');
 const voiceStatusBar = document.getElementById('voiceStatusBar');
 let activeRecognition = null;
 let micTimeoutId = null;
+let micStarting = false;
 
 function stopListening() {
   if (micTimeoutId) { clearTimeout(micTimeoutId); micTimeoutId = null; }
@@ -1908,57 +1905,77 @@ function stopListening() {
 
 document.getElementById('voiceStatusCancelBtn').addEventListener('click', stopListening);
 
+function startRecognition() {
+  // A fresh instance per attempt avoids browsers getting stuck when an old
+  // instance is reused across start/stop cycles.
+  const recognition = new SpeechRecognitionApi();
+  recognition.lang = 'ru-RU';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.addEventListener('result', async (e) => {
+    const transcript = e.results[0][0].transcript;
+    await addShoppingNote(transcript);
+  });
+  recognition.addEventListener('end', stopListening);
+  recognition.addEventListener('error', (e) => {
+    const wasSelfAborted = e.error === 'aborted' && !activeRecognition;
+    stopListening();
+    if (wasSelfAborted) return;
+    const messages = {
+      'not-allowed': 'Доступ к микрофону запрещён. Разрешите доступ к микрофону для этого сайта в настройках браузера.',
+      'service-not-allowed': 'Доступ к микрофону запрещён. Разрешите доступ к микрофону для этого сайта в настройках браузера.',
+      'no-speech': 'Не расслышал — попробуйте ещё раз и говорите сразу после нажатия на микрофон.',
+      'audio-capture': 'Микрофон не найден. Проверьте, что он подключён и доступен браузеру.',
+      'network': 'Распознавание речи требует подключения к интернету — проверьте соединение.',
+    };
+    toast(messages[e.error] || `Не удалось распознать голос (${e.error})`, 4500);
+  });
+
+  micTimeoutId = setTimeout(() => {
+    toast('Голос не распознан, попробуйте ещё раз');
+    stopListening();
+  }, 8000);
+
+  try {
+    activeRecognition = recognition;
+    notepadMicBtn.classList.add('listening');
+    voiceStatusBar.style.display = 'flex';
+    recognition.start();
+  } catch (err) {
+    stopListening();
+    toast('Не удалось запустить микрофон');
+  }
+}
+
 if (SpeechRecognitionApi) {
-  notepadMicBtn.addEventListener('click', () => {
+  notepadMicBtn.addEventListener('click', async () => {
     if (activeRecognition) { stopListening(); return; }
     if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+    if (micStarting) return;
 
-    // A fresh instance per attempt avoids browsers getting stuck when an old
-    // instance is reused across start/stop cycles.
-    const recognition = new SpeechRecognitionApi();
-    recognition.lang = 'ru-RU';
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.addEventListener('result', async (e) => {
-      const transcript = e.results[0][0].transcript;
-      await addShoppingNote(transcript);
-    });
-    recognition.addEventListener('end', stopListening);
-    recognition.addEventListener('error', (e) => {
-      const wasSelfAborted = e.error === 'aborted' && !activeRecognition;
-      stopListening();
-      if (wasSelfAborted) return;
-      const messages = {
-        'not-allowed': 'Доступ к микрофону запрещён. Разрешите доступ к микрофону для этого сайта в настройках браузера.',
-        'service-not-allowed': 'Доступ к микрофону запрещён. Разрешите доступ к микрофону для этого сайта в настройках браузера.',
-        'no-speech': 'Не расслышал — попробуйте ещё раз и говорите сразу после нажатия на микрофон.',
-        'audio-capture': 'Микрофон не найден. Проверьте, что он подключён и доступен браузеру.',
-        'network': 'Распознавание речи требует подключения к интернету — проверьте соединение.',
-      };
-      toast(messages[e.error] || `Не удалось распознать голос (${e.error})`, 4500);
-    });
-
-    micTimeoutId = setTimeout(() => {
-      toast('Голос не распознан, попробуйте ещё раз');
-      stopListening();
-    }, 8000);
-
-    try {
-      activeRecognition = recognition;
-      notepadMicBtn.classList.add('listening');
-      voiceStatusBar.style.display = 'flex';
-      recognition.start();
-    } catch (err) {
-      stopListening();
-      toast('Не удалось запустить микрофон');
+    // Safari/WebKit's SpeechRecognition.start() can behave unpredictably (never firing
+    // any event at all) once the mic permission was previously denied. Pre-flighting
+    // through getUserMedia gives a reliable allow/deny answer up front, so a denial is
+    // caught here with a clear message instead of leaving the mic button stuck spinning.
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      micStarting = true;
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (permErr) {
+        micStarting = false;
+        toast('Доступ к микрофону запрещён. Разрешите доступ к микрофону для этого сайта в настройках браузера.', 4500);
+        return;
+      }
+      stream.getTracks().forEach(t => t.stop());
+      micStarting = false;
     }
+
+    startRecognition();
   });
 } else {
-  const msg = isSafariBrowser
-    ? 'Голосовой ввод ненадёжен в Safari — откройте сайт в Chrome, чтобы им пользоваться'
-    : 'Голосовой ввод не поддерживается в этом браузере';
-  notepadMicBtn.addEventListener('click', () => toast(msg, 4500));
+  notepadMicBtn.addEventListener('click', () => toast('Голосовой ввод не поддерживается в этом браузере', 4500));
 }
 
 function escapeAttr(s) {
