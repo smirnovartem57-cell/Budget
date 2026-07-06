@@ -314,13 +314,13 @@
   .kind-toggle button.active.expense-active {
     background: var(--expense-accent); color: #fff; border-color: var(--expense-accent);
   }
-  select, input[type=text], input[type=number], input[type=date] {
+  select, input[type=text], input[type=number], input[type=date], input[type=email], input[type=password] {
     width: 100%;
-    padding: 10px 12px;
+    padding: 12px 14px;
     border: 1px solid var(--border);
     border-radius: 10px;
     font-family: 'Inter', sans-serif;
-    font-size: 14px;
+    font-size: 16px;
     color: var(--text-primary);
     background: #fff;
   }
@@ -1304,6 +1304,15 @@ document.getElementById('authSubmitBtn').addEventListener('click', async () => {
   document.getElementById('authPasswordInput').value = '';
   toast('Вы вошли');
   await loadAll();
+  if (hasCryptoSubtle && !getPinHash()) {
+    document.getElementById('pinCurrentRow').style.display = 'none';
+    document.getElementById('pinDisableBtn').style.display = 'none';
+    document.getElementById('pinCurrentInput').value = '';
+    document.getElementById('pinNewInput').value = '';
+    document.getElementById('pinConfirmInput').value = '';
+    document.getElementById('pinModalOverlay').classList.add('visible');
+    toast('Придумайте PIN-код для быстрого входа');
+  }
 });
 
 /* ---------------- DATA LOADING ---------------- */
