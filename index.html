@@ -1330,7 +1330,7 @@ async function submitPinLock() {
 }
 document.getElementById('pinLockSubmitBtn').addEventListener('click', submitPinLock);
 document.getElementById('pinLockLogoutBtn').addEventListener('click', async () => {
-  await supabaseClient.auth.signOut();
+  try { await supabaseClient.auth.signOut(); } catch (err) {}
   currentUser = null;
   clearPinState();
   document.getElementById('pinLockOverlay').classList.remove('visible');
@@ -1345,7 +1345,7 @@ document.getElementById('demoBannerLoginBtn').addEventListener('click', () => {
 
 document.getElementById('authBtn').addEventListener('click', async () => {
   if (currentUser) {
-    await supabaseClient.auth.signOut();
+    try { await supabaseClient.auth.signOut(); } catch (err) {}
     currentUser = null;
     clearPinState();
     updateAuthUI();
@@ -1358,13 +1358,27 @@ document.getElementById('authBtn').addEventListener('click', async () => {
 document.getElementById('authCancelBtn').addEventListener('click', () => {
   document.getElementById('authModalOverlay').classList.remove('visible');
 });
+const authErrorMessages = {
+  'Invalid login credentials': 'Неверный email или пароль',
+  'Email not confirmed': 'Email не подтверждён — проверьте почту и перейдите по ссылке подтверждения',
+};
 document.getElementById('authSubmitBtn').addEventListener('click', async () => {
   if (!isConfigured) { toast('База данных недоступна — обновите страницу'); return; }
   const email = document.getElementById('authEmailInput').value.trim();
   const password = document.getElementById('authPasswordInput').value;
   if (!email || !password) { toast('Введите email и пароль'); return; }
-  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-  if (error) { toast('Ошибка входа: ' + error.message); return; }
+  let result;
+  try {
+    result = await supabaseClient.auth.signInWithPassword({ email, password });
+  } catch (err) {
+    // A network-level failure (no internet, DNS/firewall blocking the server, etc.)
+    // rejects the promise instead of resolving with {error} — without this catch
+    // the tap on "Войти" silently does nothing.
+    toast('Не удалось подключиться к серверу: ' + (err.message || 'проверьте интернет-соединение'), 5000);
+    return;
+  }
+  const { error } = result;
+  if (error) { toast('Ошибка входа: ' + (authErrorMessages[error.message] || error.message), 5000); return; }
   document.getElementById('authModalOverlay').classList.remove('visible');
   document.getElementById('authPasswordInput').value = '';
   toast('Вы вошли');
@@ -1387,56 +1401,63 @@ async function loadAll() {
     renderEverything();
     return;
   }
-  const { data: { session } } = await supabaseClient.auth.getSession();
-  currentUser = session ? session.user : null;
-  updateAuthUI();
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    currentUser = session ? session.user : null;
+    updateAuthUI();
 
-  const txQuery = supabaseClient.from('transactions').select('*').order('date', { ascending: false });
-  const debtQuery = supabaseClient.from('debts').select('*').order('date', { ascending: false });
-  const shoppingQuery = supabaseClient.from('shopping_list').select('*').order('planned_date', { ascending: true });
-  const incomeQuery = supabaseClient.from('expected_income').select('*').order('expected_date', { ascending: true });
-  const notesQuery = supabaseClient.from('shopping_notes').select('*').order('created_at', { ascending: true });
-  if (currentUser) {
-    txQuery.eq('user_id', currentUser.id);
-    debtQuery.eq('user_id', currentUser.id);
-    shoppingQuery.eq('user_id', currentUser.id);
-    incomeQuery.eq('user_id', currentUser.id);
-    notesQuery.eq('user_id', currentUser.id);
-  } else {
-    txQuery.is('user_id', null);
-    debtQuery.is('user_id', null);
-    shoppingQuery.is('user_id', null);
-    incomeQuery.is('user_id', null);
-    notesQuery.is('user_id', null);
-  }
+    const txQuery = supabaseClient.from('transactions').select('*').order('date', { ascending: false });
+    const debtQuery = supabaseClient.from('debts').select('*').order('date', { ascending: false });
+    const shoppingQuery = supabaseClient.from('shopping_list').select('*').order('planned_date', { ascending: true });
+    const incomeQuery = supabaseClient.from('expected_income').select('*').order('expected_date', { ascending: true });
+    const notesQuery = supabaseClient.from('shopping_notes').select('*').order('created_at', { ascending: true });
+    if (currentUser) {
+      txQuery.eq('user_id', currentUser.id);
+      debtQuery.eq('user_id', currentUser.id);
+      shoppingQuery.eq('user_id', currentUser.id);
+      incomeQuery.eq('user_id', currentUser.id);
+      notesQuery.eq('user_id', currentUser.id);
+    } else {
+      txQuery.is('user_id', null);
+      debtQuery.is('user_id', null);
+      shoppingQuery.is('user_id', null);
+      incomeQuery.is('user_id', null);
+      notesQuery.is('user_id', null);
+    }
 
-  const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }] = await Promise.all([
-    supabaseClient.from('categories').select('*').order('created_at'),
-    txQuery,
-    debtQuery,
-    shoppingQuery,
-    incomeQuery,
-    notesQuery,
-  ]);
-  if (catErr) { toast('Ошибка загрузки категорий: ' + catErr.message); return; }
-  if (txErr) { toast('Ошибка загрузки операций: ' + txErr.message); return; }
-  if (debtErr) { toast('Ошибка загрузки долгов: ' + debtErr.message); return; }
-  if (shoppingErr) { toast('Ошибка загрузки списка покупок: ' + shoppingErr.message); return; }
-  if (incomeErr) { toast('Ошибка загрузки ожидаемых доходов: ' + incomeErr.message); return; }
-  if (notesErr) { toast('Ошибка загрузки заметок: ' + notesErr.message); return; }
-  state.categories = cats || [];
-  state.transactions = txs || [];
-  state.debts = debts || [];
-  state.shoppingList = shopping || [];
-  state.expectedIncome = income || [];
-  state.shoppingNotes = notes || [];
+    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }] = await Promise.all([
+      supabaseClient.from('categories').select('*').order('created_at'),
+      txQuery,
+      debtQuery,
+      shoppingQuery,
+      incomeQuery,
+      notesQuery,
+    ]);
+    if (catErr) { toast('Ошибка загрузки категорий: ' + catErr.message); return; }
+    if (txErr) { toast('Ошибка загрузки операций: ' + txErr.message); return; }
+    if (debtErr) { toast('Ошибка загрузки долгов: ' + debtErr.message); return; }
+    if (shoppingErr) { toast('Ошибка загрузки списка покупок: ' + shoppingErr.message); return; }
+    if (incomeErr) { toast('Ошибка загрузки ожидаемых доходов: ' + incomeErr.message); return; }
+    if (notesErr) { toast('Ошибка загрузки заметок: ' + notesErr.message); return; }
+    state.categories = cats || [];
+    state.transactions = txs || [];
+    state.debts = debts || [];
+    state.shoppingList = shopping || [];
+    state.expectedIncome = income || [];
+    state.shoppingNotes = notes || [];
 
-  if (!state.selectedMonth) {
-    const now = new Date();
-    state.selectedMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  }
-  if (!state.selectedYear) {
-    state.selectedYear = String(new Date().getFullYear());
+    if (!state.selectedMonth) {
+      const now = new Date();
+      state.selectedMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    }
+    if (!state.selectedYear) {
+      state.selectedYear = String(new Date().getFullYear());
+    }
+  } catch (err) {
+    // A network-level failure (no internet, DNS/firewall blocking the server, etc.)
+    // throws instead of returning a graceful {error} — without this catch the page
+    // is left stuck with nothing rendered and no indication of what went wrong.
+    toast('Не удалось подключиться к серверу: ' + (err.message || 'проверьте интернет-соединение'), 5000);
   }
   renderEverything();
 }
