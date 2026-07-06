@@ -435,7 +435,7 @@
   .days-remaining { font-size: 11.5px; color: var(--text-secondary); margin-top: 3px; }
   .days-remaining.overdue { color: var(--expense-accent); font-weight: 600; }
   .inline-name-input { width: 100%; min-width: 140px; padding: 6px 8px; font-size: 13.5px; font-weight: 600; }
-  input.inline-amount-input { width: 140px; min-width: 140px; padding: 6px 8px; font-size: 13.5px; text-align: right; }
+  input.inline-amount-input { width: 96px; min-width: 96px; padding: 6px 8px; font-size: 13.5px; text-align: right; }
 
   .demo-banner {
     display: none;
@@ -882,10 +882,6 @@
             <input type="date" id="incomeRecurringEndDateInput" min="2020-01-01" max="2099-12-31">
           </div>
         </div>
-        <div class="form-row">
-          <label>Комментарий (необязательно)</label>
-          <input type="text" id="incomeCommentInput" placeholder="Например: аванс за проект">
-        </div>
         <button class="btn-primary" id="incomeSubmitBtn">Добавить в список</button>
       </div>
 
@@ -903,7 +899,6 @@
                   <th>Категория</th>
                   <th class="sortable" id="incomeSortName" data-key="name">Название</th>
                   <th class="sortable" id="incomeSortDate" data-key="date">Ожидаемая дата</th>
-                  <th>Комментарий</th>
                   <th class="sortable" id="incomeSortAmount" data-key="amount" style="text-align:right;">Сумма</th>
                   <th></th>
                 </tr>
@@ -911,7 +906,7 @@
               <tbody id="incomeTableBody"></tbody>
               <tfoot>
                 <tr>
-                  <td colspan="4" style="font-weight:700;">Итого</td>
+                  <td colspan="3" style="font-weight:700;">Итого</td>
                   <td id="incomeTotalFooter" style="text-align:right; font-weight:700;">0 ₽</td>
                   <td></td>
                 </tr>
@@ -1617,7 +1612,6 @@ document.getElementById('incomeSubmitBtn').addEventListener('click', async () =>
   const amount = parseFloat(document.getElementById('incomeAmountInput').value);
   if (!amount || amount <= 0) { toast('Введите сумму больше нуля'); return; }
   const expectedDate = document.getElementById('incomeDateInput').value || null;
-  const comment = document.getElementById('incomeCommentInput').value.trim();
   const userId = currentUser ? currentUser.id : null;
 
   const isRecurring = document.getElementById('incomeRecurringCheckbox').checked;
@@ -1628,11 +1622,11 @@ document.getElementById('incomeSubmitBtn').addEventListener('click', async () =>
     if (!endDate || endDate < expectedDate) { toast('Укажите корректную дату окончания'); return; }
     const groupId = crypto.randomUUID();
     payloads = generateMonthlyDates(expectedDate, endDate).map(d => ({
-      category, name, amount, expected_date: d, comment: comment || null,
+      category, name, amount, expected_date: d,
       is_recurring: true, recurring_end_date: endDate, recurring_group_id: groupId, user_id: userId,
     }));
   } else {
-    payloads = [{ category, name, amount, expected_date: expectedDate, comment: comment || null, user_id: userId }];
+    payloads = [{ category, name, amount, expected_date: expectedDate, user_id: userId }];
   }
 
   const { error } = await supabaseClient.from('expected_income').insert(payloads);
@@ -1640,7 +1634,6 @@ document.getElementById('incomeSubmitBtn').addEventListener('click', async () =>
   toast(isRecurring ? `Добавлено доходов: ${payloads.length}` : 'Добавлено в ожидаемые доходы');
   document.getElementById('incomeNameInput').value = '';
   document.getElementById('incomeAmountInput').value = '';
-  document.getElementById('incomeCommentInput').value = '';
   document.getElementById('incomeRecurringCheckbox').checked = false;
   document.getElementById('incomeRecurringEndDateRow').style.display = 'none';
   document.getElementById('incomeRecurringEndDateInput').value = '';
@@ -1727,7 +1720,6 @@ function renderExpectedIncome() {
         <input type="date" class="shopping-date-input" value="${item.expected_date || ''}" min="2020-01-01" max="2099-12-31" onchange="updateIncomeDate('${item.id}', this.value)">
         ${remaining ? `<div class="days-remaining ${remaining.overdue ? 'overdue' : ''}">${remaining.text}</div>` : ''}
       </td>
-      <td class="comment-cell">${item.comment || ''}</td>
       <td style="text-align:right;">
         <input type="text" inputmode="numeric" class="inline-amount-input" value="${fmt.format(item.amount)}"
           onfocus="this.value = String(${item.amount}).replace(/\s/g,'')"
