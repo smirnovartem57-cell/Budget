@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Семейный бюджет</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<meta name="theme-color" content="#185FA5">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -107,6 +111,22 @@
     max-width: 90vw;
   }
   .auth-modal h2 { margin: 0 0 16px; font-size: 17px; }
+  .pin-lock-overlay {
+    position: fixed; inset: 0;
+    background: var(--bg-page);
+    display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px;
+    z-index: 500;
+    padding: 24px;
+    text-align: center;
+  }
+  .pin-lock-overlay.visible { display: flex; }
+  .pin-lock-overlay .brand-mark { width: 48px; height: 48px; border-radius: 12px; background: var(--btn-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+  .pin-lock-overlay h2 { margin: 0; font-size: 18px; }
+  .pin-lock-overlay input[type=password] { width: 200px; text-align: center; letter-spacing: 10px; font-size: 22px; }
+  .pin-lock-overlay .btn-primary { width: 200px; }
+  .pin-lock-overlay .pin-logout-link { background: none; border: none; color: var(--text-secondary); font-size: 13px; text-decoration: underline; cursor: pointer; margin-top: 6px; }
   .month-picker {
     display: flex; align-items: center; gap: 8px;
     background: rgba(255,255,255,0.06);
@@ -577,6 +597,7 @@
       <h1>Семейный бюджет</h1>
       <div class="subtitle" id="authStatusLabel">Демо-режим</div>
     </div>
+    <button type="button" class="header-btn" id="pinBtn" style="display:none;">🔒 PIN</button>
     <button type="button" class="header-btn" id="authBtn">Войти</button>
   </div>
   <div class="month-picker">
@@ -1000,6 +1021,35 @@
   </div>
 </div>
 
+<div class="auth-modal-overlay" id="pinModalOverlay">
+  <div class="auth-modal">
+    <h2>PIN-код</h2>
+    <div class="form-row" id="pinCurrentRow" style="display:none;">
+      <label>Текущий PIN-код</label>
+      <input type="password" inputmode="numeric" maxlength="4" id="pinCurrentInput" placeholder="••••">
+    </div>
+    <div class="form-row">
+      <label>Новый PIN-код (4 цифры)</label>
+      <input type="password" inputmode="numeric" maxlength="4" id="pinNewInput" placeholder="••••">
+    </div>
+    <div class="form-row">
+      <label>Повторите новый PIN-код</label>
+      <input type="password" inputmode="numeric" maxlength="4" id="pinConfirmInput" placeholder="••••">
+    </div>
+    <button class="btn-primary" id="pinSaveBtn">Сохранить</button>
+    <button class="btn-ghost" id="pinDisableBtn" style="width:100%;margin-top:8px;display:none;">Отключить PIN-код</button>
+    <button class="btn-ghost" id="pinCancelBtn" style="width:100%;margin-top:8px;">Отмена</button>
+  </div>
+</div>
+
+<div class="pin-lock-overlay" id="pinLockOverlay">
+  <div class="brand-mark">₽</div>
+  <h2>Введите PIN-код</h2>
+  <input type="password" inputmode="numeric" maxlength="4" id="pinLockInput" placeholder="••••">
+  <button type="button" class="btn-primary" id="pinLockSubmitBtn">Войти</button>
+  <button type="button" class="pin-logout-link" id="pinLockLogoutBtn">Выйти из аккаунта</button>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <div class="voice-status-bar" id="voiceStatusBar" style="display:none;">
@@ -1116,7 +1166,97 @@ function updateAuthUI() {
   document.getElementById('authBtn').textContent = currentUser ? 'Выйти' : 'Войти';
   document.getElementById('authStatusLabel').textContent = currentUser ? 'Артём' : 'Демо-режим';
   document.getElementById('demoBanner').classList.toggle('visible', !currentUser);
+  document.getElementById('pinBtn').style.display = currentUser ? 'inline-block' : 'none';
+  checkPinLock();
 }
+
+/* ---------------- APP PIN LOCK ---------------- */
+async function sha256Hex(str) {
+  const enc = new TextEncoder().encode(str);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function getPinHash() { return localStorage.getItem('budgetPinHash'); }
+function setPinHash(hash) {
+  if (hash) localStorage.setItem('budgetPinHash', hash);
+  else localStorage.removeItem('budgetPinHash');
+}
+function isPinUnlockedThisSession() { return sessionStorage.getItem('pinUnlocked') === '1'; }
+function markPinUnlocked() { sessionStorage.setItem('pinUnlocked', '1'); }
+function clearPinState() { setPinHash(null); sessionStorage.removeItem('pinUnlocked'); }
+
+function checkPinLock() {
+  const locked = !!(currentUser && getPinHash() && !isPinUnlockedThisSession());
+  document.getElementById('pinLockOverlay').classList.toggle('visible', locked);
+  if (locked) document.getElementById('pinLockInput').focus();
+}
+
+document.getElementById('pinBtn').addEventListener('click', () => {
+  const hasPin = !!getPinHash();
+  document.getElementById('pinCurrentRow').style.display = hasPin ? 'block' : 'none';
+  document.getElementById('pinDisableBtn').style.display = hasPin ? 'block' : 'none';
+  document.getElementById('pinCurrentInput').value = '';
+  document.getElementById('pinNewInput').value = '';
+  document.getElementById('pinConfirmInput').value = '';
+  document.getElementById('pinModalOverlay').classList.add('visible');
+});
+document.getElementById('pinCancelBtn').addEventListener('click', () => {
+  document.getElementById('pinModalOverlay').classList.remove('visible');
+});
+
+async function verifyCurrentPin() {
+  const existingHash = getPinHash();
+  if (!existingHash) return true;
+  const entered = document.getElementById('pinCurrentInput').value;
+  const enteredHash = await sha256Hex(entered);
+  if (enteredHash !== existingHash) { toast('Неверный текущий PIN-код'); return false; }
+  return true;
+}
+
+document.getElementById('pinSaveBtn').addEventListener('click', async () => {
+  if (!(await verifyCurrentPin())) return;
+  const newPin = document.getElementById('pinNewInput').value;
+  const confirmPin = document.getElementById('pinConfirmInput').value;
+  if (!/^\d{4}$/.test(newPin)) { toast('PIN-код должен состоять из 4 цифр'); return; }
+  if (newPin !== confirmPin) { toast('PIN-коды не совпадают'); return; }
+  setPinHash(await sha256Hex(newPin));
+  markPinUnlocked();
+  document.getElementById('pinModalOverlay').classList.remove('visible');
+  toast('PIN-код сохранён');
+});
+
+document.getElementById('pinDisableBtn').addEventListener('click', async () => {
+  if (!(await verifyCurrentPin())) return;
+  clearPinState();
+  document.getElementById('pinModalOverlay').classList.remove('visible');
+  toast('PIN-код отключён');
+});
+
+async function submitPinLock() {
+  const entered = document.getElementById('pinLockInput').value;
+  const enteredHash = await sha256Hex(entered);
+  if (enteredHash !== getPinHash()) {
+    toast('Неверный PIN-код');
+    document.getElementById('pinLockInput').value = '';
+    return;
+  }
+  markPinUnlocked();
+  document.getElementById('pinLockOverlay').classList.remove('visible');
+  document.getElementById('pinLockInput').value = '';
+}
+document.getElementById('pinLockSubmitBtn').addEventListener('click', submitPinLock);
+document.getElementById('pinLockInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') submitPinLock();
+});
+document.getElementById('pinLockLogoutBtn').addEventListener('click', async () => {
+  await supabaseClient.auth.signOut();
+  currentUser = null;
+  clearPinState();
+  document.getElementById('pinLockOverlay').classList.remove('visible');
+  updateAuthUI();
+  await loadAll();
+  toast('Вы вышли');
+});
 
 document.getElementById('demoBannerLoginBtn').addEventListener('click', () => {
   document.getElementById('authModalOverlay').classList.add('visible');
@@ -1126,6 +1266,7 @@ document.getElementById('authBtn').addEventListener('click', async () => {
   if (currentUser) {
     await supabaseClient.auth.signOut();
     currentUser = null;
+    clearPinState();
     updateAuthUI();
     await loadAll();
     toast('Вы вышли');
