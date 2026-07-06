@@ -435,6 +435,20 @@
   .days-remaining { font-size: 11.5px; color: var(--text-secondary); margin-top: 3px; }
   .days-remaining.overdue { color: var(--expense-accent); font-weight: 600; }
   .inline-name-input { width: 100%; min-width: 140px; padding: 6px 8px; font-size: 13.5px; font-weight: 600; }
+
+  .notepad-input-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .notepad-input-row input[type=text] { flex: 1; }
+  .mic-btn {
+    border: 1px solid var(--border); background: var(--card-bg); color: var(--text-primary);
+    border-radius: 10px; width: 42px; height: 42px; font-size: 18px; cursor: pointer; flex-shrink: 0;
+  }
+  .mic-btn.listening { background: var(--expense-accent); color: #fff; border-color: var(--expense-accent); animation: pulse 1s infinite ease-in-out; }
+  .notepad-list { list-style: none; margin: 0; padding: 0; }
+  .notepad-item { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px dashed var(--border); }
+  .notepad-item:last-child { border-bottom: none; }
+  .notepad-item input[type=checkbox] { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--income-accent); cursor: pointer; }
+  .notepad-item span { flex: 1; font-size: 14px; word-break: break-word; }
+  .notepad-item.done span { text-decoration: line-through; color: var(--text-secondary); }
   input.inline-amount-input { width: 96px; min-width: 96px; padding: 6px 8px; font-size: 13.5px; text-align: right; }
 
   .demo-banner {
@@ -597,6 +611,20 @@
       <div class="value" id="balanceMonth">—</div>
       <div class="growth-indicator" id="growthBalance"></div>
     </div>
+  </div>
+
+  <div class="panel">
+    <h2 style="justify-content:space-between;">
+      <span>📝 Список покупок на сегодня</span>
+      <span class="badge-info" id="notepadDateLabel"></span>
+    </h2>
+    <div class="notepad-input-row">
+      <input type="text" id="notepadInput" placeholder="Например: молоко, хлеб...">
+      <button type="button" class="mic-btn" id="notepadMicBtn" title="Добавить голосом">🎤</button>
+      <button type="button" class="btn-primary" style="width:auto; padding:0 18px;" id="notepadAddBtn">Добавить</button>
+    </div>
+    <ul class="notepad-list" id="notepadList"></ul>
+    <div class="empty-note" id="notepadEmptyNote" style="display:none;">Список пуст — добавьте что-нибудь голосом или текстом</div>
   </div>
 
   <div class="main-grid">
@@ -1005,6 +1033,7 @@ let state = {
   debtsSort: { key: null, dir: 'asc' },     // key: 'date'
   expectedIncome: [],
   incomeSort: { key: null, dir: 'asc' },    // key: 'name' | 'amount' | 'date'
+  shoppingNotes: [],
 };
 
 let currentUser = null;
@@ -1110,35 +1139,41 @@ async function loadAll() {
   const debtQuery = supabaseClient.from('debts').select('*').order('date', { ascending: false });
   const shoppingQuery = supabaseClient.from('shopping_list').select('*').order('planned_date', { ascending: true });
   const incomeQuery = supabaseClient.from('expected_income').select('*').order('expected_date', { ascending: true });
+  const notesQuery = supabaseClient.from('shopping_notes').select('*').order('created_at', { ascending: true });
   if (currentUser) {
     txQuery.eq('user_id', currentUser.id);
     debtQuery.eq('user_id', currentUser.id);
     shoppingQuery.eq('user_id', currentUser.id);
     incomeQuery.eq('user_id', currentUser.id);
+    notesQuery.eq('user_id', currentUser.id);
   } else {
     txQuery.is('user_id', null);
     debtQuery.is('user_id', null);
     shoppingQuery.is('user_id', null);
     incomeQuery.is('user_id', null);
+    notesQuery.is('user_id', null);
   }
 
-  const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }] = await Promise.all([
+  const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }] = await Promise.all([
     supabaseClient.from('categories').select('*').order('created_at'),
     txQuery,
     debtQuery,
     shoppingQuery,
     incomeQuery,
+    notesQuery,
   ]);
   if (catErr) { toast('Ошибка загрузки категорий: ' + catErr.message); return; }
   if (txErr) { toast('Ошибка загрузки операций: ' + txErr.message); return; }
   if (debtErr) { toast('Ошибка загрузки долгов: ' + debtErr.message); return; }
   if (shoppingErr) { toast('Ошибка загрузки списка покупок: ' + shoppingErr.message); return; }
   if (incomeErr) { toast('Ошибка загрузки ожидаемых доходов: ' + incomeErr.message); return; }
+  if (notesErr) { toast('Ошибка загрузки заметок: ' + notesErr.message); return; }
   state.categories = cats || [];
   state.transactions = txs || [];
   state.debts = debts || [];
   state.shoppingList = shopping || [];
   state.expectedIncome = income || [];
+  state.shoppingNotes = notes || [];
 
   if (!state.selectedMonth) {
     const now = new Date();
@@ -1537,6 +1572,97 @@ async function markShoppingBought(id) {
   if (delErr) { toast('Ошибка при удалении из списка: ' + delErr.message); return; }
   toast('Отмечено как купленное — добавлено в расходы');
   await loadAll();
+}
+
+/* ---------------- TODAY'S SHOPPING NOTEPAD ---------------- */
+async function addShoppingNote(text) {
+  const trimmed = text.trim();
+  if (!trimmed) return;
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const { error } = await supabaseClient.from('shopping_notes').insert({
+    text: trimmed, user_id: currentUser ? currentUser.id : null,
+  });
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  await loadAll();
+}
+
+async function toggleShoppingNote(id, isDone) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const { error } = await supabaseClient.from('shopping_notes').update({ is_done: isDone }).eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  await loadAll();
+}
+
+async function deleteShoppingNote(id) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const { error } = await supabaseClient.from('shopping_notes').delete().eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  await loadAll();
+}
+
+function renderShoppingNotes() {
+  document.getElementById('notepadDateLabel').textContent = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: 'long' });
+  const list = state.shoppingNotes.slice().sort((a, b) => Number(a.is_done) - Number(b.is_done));
+  const ul = document.getElementById('notepadList');
+  ul.innerHTML = '';
+  document.getElementById('notepadEmptyNote').style.display = list.length ? 'none' : 'block';
+  list.forEach(item => {
+    const li = document.createElement('li');
+    li.className = 'notepad-item' + (item.is_done ? ' done' : '');
+    li.innerHTML = `
+      <input type="checkbox" ${item.is_done ? 'checked' : ''} onchange="toggleShoppingNote('${item.id}', this.checked)">
+      <span>${escapeAttr(item.text)}</span>
+      <button class="del-btn" onclick="deleteShoppingNote('${item.id}')">✕</button>
+    `;
+    ul.appendChild(li);
+  });
+}
+
+document.getElementById('notepadAddBtn').addEventListener('click', async () => {
+  const input = document.getElementById('notepadInput');
+  await addShoppingNote(input.value);
+  input.value = '';
+});
+document.getElementById('notepadInput').addEventListener('keydown', async (e) => {
+  if (e.key === 'Enter') {
+    const input = e.target;
+    await addShoppingNote(input.value);
+    input.value = '';
+  }
+});
+
+const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
+const notepadMicBtn = document.getElementById('notepadMicBtn');
+if (SpeechRecognitionApi) {
+  const recognition = new SpeechRecognitionApi();
+  recognition.lang = 'ru-RU';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  let listening = false;
+
+  recognition.addEventListener('result', async (e) => {
+    const transcript = e.results[0][0].transcript;
+    await addShoppingNote(transcript);
+  });
+  recognition.addEventListener('end', () => {
+    listening = false;
+    notepadMicBtn.classList.remove('listening');
+  });
+  recognition.addEventListener('error', () => {
+    listening = false;
+    notepadMicBtn.classList.remove('listening');
+    toast('Не удалось распознать голос');
+  });
+
+  notepadMicBtn.addEventListener('click', () => {
+    if (listening) { recognition.stop(); return; }
+    if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+    listening = true;
+    notepadMicBtn.classList.add('listening');
+    recognition.start();
+  });
+} else {
+  notepadMicBtn.addEventListener('click', () => toast('Голосовой ввод не поддерживается в этом браузере'));
 }
 
 function escapeAttr(s) {
@@ -2231,6 +2357,7 @@ function renderEverything() {
   renderShoppingList();
   renderExpectedIncome();
   renderIncomeDynamics();
+  renderShoppingNotes();
 }
 
 loadAll();
