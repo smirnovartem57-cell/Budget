@@ -1048,8 +1048,11 @@
         <!-- EXPECTED INCOME LIST -->
         <div class="panel">
           <h2 style="justify-content:space-between;">
-            <span>Ожидаемые доходы</span>
-            <span class="badge-info" id="incomeTotalBadge">0 ₽</span>
+            <span>Ожидаемые доходы за <span id="incomeMonthLabel">этот месяц</span></span>
+            <span style="display:flex; align-items:center; gap:8px;">
+              <span class="badge-info" id="incomeTotalBadge">0 ₽</span>
+              <button type="button" class="btn-tiny" id="deleteAllExpectedIncomeBtn">Удалить все</button>
+            </span>
           </h2>
           <div style="overflow-x:auto;">
             <table>
@@ -1065,13 +1068,13 @@
               <tbody id="incomeTableBody"></tbody>
               <tfoot>
                 <tr>
-                  <td colspan="3" style="font-weight:700;">Итого</td>
+                  <td colspan="3" style="font-weight:700;" id="incomeTotalLabel">Итого</td>
                   <td id="incomeTotalFooter" style="text-align:right; font-weight:700;">0 ₽</td>
                   <td></td>
                 </tr>
               </tfoot>
             </table>
-            <div class="empty-note" id="incomeEmptyNote" style="display:none;">Пока нет ожидаемых доходов</div>
+            <div class="empty-note" id="incomeEmptyNote" style="display:none;">Нет ожидаемых доходов в этом месяце</div>
           </div>
         </div>
       </div>
@@ -2274,6 +2277,18 @@ async function deleteExpectedIncome(id) {
   await loadAll();
 }
 
+async function deleteAllExpectedIncome() {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  if (!state.expectedIncome.length) { toast('Список уже пуст'); return; }
+  if (!confirm(`Удалить ВСЕ ожидаемые доходы (${state.expectedIncome.length} шт., включая будущие месяцы)? Это действие нельзя отменить.`)) return;
+  const query = supabaseClient.from('expected_income').delete();
+  const { error } = currentUser ? await query.eq('user_id', currentUser.id) : await query.is('user_id', null);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Все ожидаемые доходы удалены');
+  await loadAll();
+}
+document.getElementById('deleteAllExpectedIncomeBtn').addEventListener('click', deleteAllExpectedIncome);
+
 async function updateIncomeDate(id, newDate) {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
   const { error } = await supabaseClient.from('expected_income').update({ expected_date: newDate || null }).eq('id', id);
@@ -2317,7 +2332,8 @@ async function markIncomeReceived(id) {
 
 function renderExpectedIncome() {
   const { key, dir } = state.incomeSort;
-  const list = state.expectedIncome.slice();
+  const currentMonthKey = todayStr().slice(0, 7);
+  const list = state.expectedIncome.filter(item => item.expected_date && monthKey(item.expected_date) === currentMonthKey);
   if (key === 'amount') {
     list.sort((a, b) => (Number(a.amount) - Number(b.amount)) * (dir === 'asc' ? 1 : -1));
   } else if (key === 'name') {
@@ -2329,7 +2345,11 @@ function renderExpectedIncome() {
   }
   updateSortArrows(state.incomeSort, ['incomeSortName', 'incomeSortDate', 'incomeSortAmount']);
 
-  const total = state.expectedIncome.reduce((s, item) => s + Number(item.amount), 0);
+  const monthName = monthLabel(currentMonthKey);
+  document.getElementById('incomeMonthLabel').textContent = monthName;
+  document.getElementById('incomeTotalLabel').textContent = `Итого за ${monthName}`;
+
+  const total = list.reduce((s, item) => s + Number(item.amount), 0);
   document.getElementById('incomeTotalBadge').textContent = fmt.format(total);
   document.getElementById('incomeTotalFooter').textContent = fmt.format(total);
 
