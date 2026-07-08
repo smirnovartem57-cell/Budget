@@ -814,7 +814,13 @@
     <div>
       <!-- CHARTS -->
       <div class="panel">
-        <h2>Динамика <span id="dynamicsPeriodLabel">по месяцам</span> <span class="badge-info" id="dynamicsBadge">12 мес</span></h2>
+        <h2 style="justify-content:space-between;">
+          <span>Динамика <span id="dynamicsPeriodLabel">по месяцам</span> <span class="badge-info" id="dynamicsBadge">12 мес</span></span>
+          <span style="display:flex; gap:6px;">
+            <button type="button" class="btn-tiny" id="dynamicsByDayBtn">По дням</button>
+            <button type="button" class="btn-tiny active" id="dynamicsByMonthBtn">По месяцам</button>
+          </span>
+        </h2>
         <div class="chart-box"><canvas id="dynamicsChart"></canvas></div>
       </div>
 
@@ -1221,6 +1227,7 @@ let state = {
   incomeSort: { key: null, dir: 'asc' },    // key: 'name' | 'amount' | 'date'
   shoppingNotes: [],
   incomeDynamicsView: 'day', // 'day' | 'month'
+  dynamicsView: 'month', // 'day' | 'month'
 };
 
 let currentUser = null;
@@ -1646,6 +1653,16 @@ document.getElementById('incomeDynByDayBtn').addEventListener('click', () => {
 document.getElementById('incomeDynByMonthBtn').addEventListener('click', () => {
   state.incomeDynamicsView = 'month';
   renderIncomeDynamics();
+});
+
+/* ---------------- UI: MAIN DYNAMICS CHART (DAY / MONTH) ---------------- */
+document.getElementById('dynamicsByDayBtn').addEventListener('click', () => {
+  state.dynamicsView = 'day';
+  renderDynamicsChart();
+});
+document.getElementById('dynamicsByMonthBtn').addEventListener('click', () => {
+  state.dynamicsView = 'month';
+  renderDynamicsChart();
 });
 
 function setKind(kind) {
@@ -2764,25 +2781,39 @@ function allYears() {
 }
 
 function renderDynamicsChart() {
+  document.getElementById('dynamicsByDayBtn').classList.toggle('active', state.dynamicsView === 'day');
+  document.getElementById('dynamicsByMonthBtn').classList.toggle('active', state.dynamicsView === 'month');
+
   const byYear = state.viewMode === 'year';
-  document.getElementById('dynamicsPeriodLabel').textContent = byYear ? 'по годам' : 'по месяцам';
-
-  const labels = byYear ? allYears() : last12Months();
-  document.getElementById('dynamicsBadge').textContent = byYear ? `${labels.length} лет` : '12 мес';
-
-  const income = byYear
-    ? labels.map(y => sumForMonths(fullMonthRange().filter(k => k.startsWith(y + '-')), 'income'))
-    : labels.map(m => sumForMonths([m], 'income'));
-  const expense = byYear
-    ? labels.map(y => sumForMonths(fullMonthRange().filter(k => k.startsWith(y + '-')), 'expense'))
-    : labels.map(m => sumForMonths([m], 'expense'));
+  let labels, chartLabels, income, expense;
+  if (state.dynamicsView === 'day') {
+    const days = daysInMonthArray(state.selectedMonth);
+    labels = days;
+    chartLabels = days.map(d => d.slice(8, 10));
+    income = days.map(d => sumForDay(d, 'income'));
+    expense = days.map(d => sumForDay(d, 'expense'));
+    document.getElementById('dynamicsPeriodLabel').textContent = 'по дням';
+    const monthName = monthLabel(state.selectedMonth);
+    document.getElementById('dynamicsBadge').textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+  } else {
+    document.getElementById('dynamicsPeriodLabel').textContent = byYear ? 'по годам' : 'по месяцам';
+    labels = byYear ? allYears() : last12Months();
+    chartLabels = byYear ? labels : labels.map(m => monthLabel(m).replace(/^(\S+)/, s => s.charAt(0).toUpperCase()+s.slice(1)));
+    document.getElementById('dynamicsBadge').textContent = byYear ? `${labels.length} лет` : '12 мес';
+    income = byYear
+      ? labels.map(y => sumForMonths(fullMonthRange().filter(k => k.startsWith(y + '-')), 'income'))
+      : labels.map(m => sumForMonths([m], 'income'));
+    expense = byYear
+      ? labels.map(y => sumForMonths(fullMonthRange().filter(k => k.startsWith(y + '-')), 'expense'))
+      : labels.map(m => sumForMonths([m], 'expense'));
+  }
   const balance = labels.map((_, i) => income[i] - expense[i]);
 
   const ctx = document.getElementById('dynamicsChart');
   if (dynamicsChartInstance) dynamicsChartInstance.destroy();
   dynamicsChartInstance = new Chart(ctx, {
     data: {
-      labels: byYear ? labels : labels.map(m => monthLabel(m).replace(/^(\S+)/, s => s.charAt(0).toUpperCase()+s.slice(1))),
+      labels: chartLabels,
       datasets: [
         { type: 'bar', label: 'Доход', data: income, backgroundColor: '#2E7D5B99', borderRadius: 4 },
         { type: 'bar', label: 'Расход', data: expense, backgroundColor: '#B4483A99', borderRadius: 4 },
