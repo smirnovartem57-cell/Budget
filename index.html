@@ -2275,7 +2275,10 @@ function renderShoppingList() {
       </td>
       <td class="comment-cell">${item.comment || ''}</td>
       <td style="text-align:right;">
-        <input type="number" class="inline-amount-input" value="${item.amount}" min="0" step="1" onchange="updateShoppingField('${item.id}','amount', this.value)">
+        <input type="text" inputmode="numeric" class="inline-amount-input" value="${fmt.format(item.amount)}"
+          onfocus="this.value = String(${item.amount}).replace(/\s/g,'')"
+          onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${item.amount})"
+          onchange="updateShoppingField('${item.id}','amount', this.value.replace(/\s/g,'').replace(',', '.'))">
       </td>
       <td style="white-space:nowrap;">
         <button class="btn-tiny" onclick="markShoppingBought('${item.id}')">Куплено</button>
