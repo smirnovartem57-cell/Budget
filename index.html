@@ -521,6 +521,9 @@
   /* Smaller on desktop; kept at 16px on mobile in the breakpoint below so
      iOS doesn't auto-zoom the page when these are focused. */
   input.income-name-input, input.income-date-input { font-size: 13.5px; }
+  input.income-name-input { min-width: 100px; }
+  input.income-date-input { min-width: 105px; }
+  input.income-amount-input { width: 90px; min-width: 90px; }
 
   .notepad-input-row { display: flex; gap: 8px; margin-bottom: 14px; }
   .notepad-input-row input[type=text] { flex: 1; }
@@ -578,6 +581,7 @@
   .btn-tiny:hover { border-color: var(--income-accent); color: var(--income-accent); }
   .btn-tiny.active { background: var(--income-accent); border-color: var(--income-accent); color: #fff; }
   .btn-tiny.active:hover { color: #fff; }
+  .btn-tiny.icon-btn { padding: 6px 9px; font-size: 13px; }
   .debt-row-paid { opacity: 0.5; }
   .debt-row-paid .cat-badge { text-decoration: line-through; }
 
@@ -659,7 +663,8 @@
     }
     input[type=date] { min-width: 0; max-width: 100%; }
     #txCommentHeader, td.tx-comment-cell.comment-cell { display: none; }
-    input.income-name-input, input.income-date-input { font-size: 16px; }
+    input.income-name-input, input.income-date-input { font-size: 16px; min-width: 88px; }
+    input.income-amount-input { width: 80px; min-width: 80px; }
     .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
     .summary-card { padding: 10px 8px; }
     .summary-card .label { font-size: 9.5px; margin-bottom: 4px; }
@@ -1062,7 +1067,6 @@
             <table>
               <thead>
                 <tr>
-                  <th>Категория</th>
                   <th class="sortable" id="incomeSortName" data-key="name">Название</th>
                   <th class="sortable" id="incomeSortDate" data-key="date">Ожидаемая дата</th>
                   <th class="sortable" id="incomeSortAmount" data-key="amount" style="text-align:right;">Сумма</th>
@@ -1072,7 +1076,7 @@
               <tbody id="incomeTableBody"></tbody>
               <tfoot>
                 <tr>
-                  <td colspan="3" style="font-weight:700;" id="incomeTotalLabel">Итого</td>
+                  <td colspan="2" style="font-weight:700;" id="incomeTotalLabel">Итого</td>
                   <td id="incomeTotalFooter" style="text-align:right; font-weight:700;">0 ₽</td>
                   <td></td>
                 </tr>
@@ -2383,23 +2387,22 @@ function renderExpectedIncome() {
     const tr = document.createElement('tr');
     const remaining = item.expected_date ? daysRemainingLabel(item.expected_date) : '';
     tr.innerHTML = `
-      <td>${item.category || ''}${item.is_recurring ? '<div class="days-remaining">🔁 Ежемесячно</div>' : ''}</td>
-      <td><input type="text" class="inline-name-input income-name-input" value="${escapeAttr(item.name)}" onchange="updateIncomeField('${item.id}','name', this.value)"></td>
+      <td>
+        ${item.category ? `<div style="margin-bottom:4px;"><span class="cat-badge">${item.category}</span></div>` : ''}
+        ${item.is_recurring ? '<div class="days-remaining">🔁 Ежемесячно</div>' : ''}
+        <input type="text" class="inline-name-input income-name-input" value="${escapeAttr(item.name)}" onchange="updateIncomeField('${item.id}','name', this.value)">
+      </td>
       <td>
         <input type="date" class="shopping-date-input income-date-input" value="${item.expected_date || ''}" min="2020-01-01" max="2099-12-31" onchange="updateIncomeDate('${item.id}', this.value)">
         ${remaining && !remaining.overdue ? `<div class="days-remaining">${remaining.text}</div>` : ''}
       </td>
       <td style="text-align:right;">
-        <input type="text" inputmode="numeric" class="inline-amount-input" value="${fmt.format(item.amount)}"
+        <input type="text" inputmode="numeric" class="inline-amount-input income-amount-input" value="${fmt.format(item.amount)}"
           onfocus="this.value = String(${item.amount}).replace(/\s/g,'')"
           onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${item.amount})"
           onchange="updateIncomeField('${item.id}','amount', this.value.replace(/\s/g,'').replace(',', '.'))">
       </td>
-      <td style="white-space:nowrap;">
-        <button class="btn-tiny" onclick="markIncomeReceived('${item.id}')">Получено</button>
-        <button class="btn-tiny ${item.is_received ? 'active' : ''}" onclick="toggleIncomeReceivedFlag('${item.id}')">${item.is_received ? '✓ Получил' : 'Получил'}</button>
-        <button class="del-btn" onclick="deleteExpectedIncome('${item.id}')">✕</button>
-      </td>
+      <td style="white-space:nowrap; display:flex; gap:4px; align-items:center;"><button class="btn-tiny icon-btn" onclick="markIncomeReceived('${item.id}')" title="Добавить в операции">📥</button><button class="btn-tiny icon-btn ${item.is_received ? 'active' : ''}" onclick="toggleIncomeReceivedFlag('${item.id}')" title="${item.is_received ? 'Деньги пришли — нажмите, чтобы снять отметку' : 'Отметить, что деньги пришли'}">✓</button><button class="del-btn" onclick="deleteExpectedIncome('${item.id}')" title="Удалить">✕</button></td>
     `;
     tbody.appendChild(tr);
   });
