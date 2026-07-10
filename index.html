@@ -389,6 +389,18 @@
     cursor: pointer; white-space: nowrap;
   }
   .ai-toggle-label input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--info-accent); cursor: pointer; }
+
+  .ai-summary-toggle { display: flex; gap: 8px; margin-bottom: 10px; }
+  .ai-summary-toggle button {
+    flex: 1; padding: 8px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--bg-page); color: var(--text-secondary);
+    font-weight: 700; font-size: 13px; cursor: pointer; transition: all .15s;
+  }
+  .ai-summary-toggle button.active { background: var(--info-accent); color: #fff; border-color: var(--info-accent); }
+  .ai-summary-text { font-size: 13.5px; line-height: 1.5; color: var(--text-primary); margin-bottom: 8px; }
+  .ai-summary-highlights { list-style: none; padding: 0; margin: 0 0 8px; display: flex; flex-direction: column; gap: 5px; }
+  .ai-summary-highlights li { font-size: 12.5px; padding: 6px 10px; background: var(--info-bg); border-radius: 8px; color: #0C2B44; }
+  .ai-summary-meta { font-size: 11px; color: var(--text-secondary); }
   .kind-toggle {
     display: flex;
     gap: 8px;
@@ -840,6 +852,18 @@
       <div class="value" id="balanceMonth">—</div>
       <div class="growth-indicator" id="growthBalance"></div>
     </div>
+  </div>
+
+  <div class="panel" id="aiSummaryPanel">
+    <h2>🤖 ИИ-сводка</h2>
+    <div class="ai-summary-toggle">
+      <button type="button" id="aiSummaryWeekBtn" class="active">Неделя</button>
+      <button type="button" id="aiSummaryMonthBtn">Месяц</button>
+    </div>
+    <div id="aiSummaryBody">
+      <div class="empty-note" id="aiSummaryEmpty">Нажмите «Получить сводку», чтобы ИИ кратко описал траты за период.</div>
+    </div>
+    <button type="button" class="btn-secondary" id="aiSummaryBtn" style="width:auto; padding:0 18px; height:38px;">Получить сводку</button>
   </div>
 
   <div class="panel">
@@ -2191,6 +2215,149 @@ document.getElementById('commentInput').addEventListener('blur', async () => {
   applySuggestionByConfidenceTier(suggestion, settings);
 });
 
+/* ---------------- AI SUMMARY (Function #2) ----------------
+   All numbers below are computed by regular code from state.transactions.
+   The AI only turns already-computed numbers into a short Russian text —
+   it never receives raw comments and never performs any calculation itself. */
+let aiSummaryPeriod = 'week';
+let aiSummaryLoading = false;
+
+function computeSummaryStats(period) {
+  const toISO = (d) => d.toISOString().slice(0, 10);
+  const now = new Date();
+  let curStart, curEnd, prevStart, prevEnd, label;
+  if (period === 'week') {
+    curEnd = new Date(now); curEnd.setHours(0, 0, 0, 0);
+    curStart = new Date(curEnd); curStart.setDate(curStart.getDate() - 6);
+    prevEnd = new Date(curStart); prevEnd.setDate(prevEnd.getDate() - 1);
+    prevStart = new Date(prevEnd); prevStart.setDate(prevStart.getDate() - 6);
+    label = 'последние 7 дней';
+  } else {
+    curStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    curEnd = new Date(now); curEnd.setHours(0, 0, 0, 0);
+    const daysSoFar = curEnd.getDate();
+    prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    prevEnd = new Date(now.getFullYear(), now.getMonth() - 1, daysSoFar);
+    label = monthLabel(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+  }
+  const curFromIso = toISO(curStart), curToIso = toISO(curEnd);
+  const prevFromIso = toISO(prevStart), prevToIso = toISO(prevEnd);
+  const inRange = (dateStr, from, to) => dateStr >= from && dateStr <= to;
+
+  const curTx = state.transactions.filter(t => inRange(t.date, curFromIso, curToIso) && hasHappened(t));
+  const prevTx = state.transactions.filter(t => inRange(t.date, prevFromIso, prevToIso) && hasHappened(t));
+  const sumKind = (txs, kind) => txs.filter(t => t.kind === kind).reduce((s, t) => s + Number(t.amount), 0);
+  const topExpenseCategories = (() => {
+    const m = {};
+    curTx.filter(t => t.kind === 'expense').forEach(t => { m[t.category] = (m[t.category] || 0) + Number(t.amount); });
+    return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([category, amount]) => ({ category, amount }));
+  })();
+
+  const income = sumKind(curTx, 'income');
+  const expense = sumKind(curTx, 'expense');
+  const prevIncome = sumKind(prevTx, 'income');
+  const prevExpense = sumKind(prevTx, 'expense');
+  const pctDelta = (cur, prev) => (prev > 0 ? Math.round(((cur - prev) / prev) * 100) : null);
+
+  return {
+    period, label, dateFrom: curFromIso, dateTo: curToIso,
+    income, expense, net: income - expense,
+    prevIncome, prevExpense,
+    incomeDeltaPct: pctDelta(income, prevIncome),
+    expenseDeltaPct: pctDelta(expense, prevExpense),
+    topExpenseCategories, transactionCount: curTx.length,
+  };
+}
+
+async function callAiSummary(stats) {
+  if (!isConfigured || !supabaseClient) return null;
+  try {
+    const { data, error } = await withTimeout(
+      supabaseClient.functions.invoke('generate-summary', { body: { stats } }),
+      10000,
+      'Сервер ИИ не отвечает'
+    );
+    if (error || !data || data.error || typeof data.summary !== 'string') return null;
+    return { summary: data.summary, highlights: Array.isArray(data.highlights) ? data.highlights : [] };
+  } catch (e) {
+    return null;
+  }
+}
+
+function aiSummaryCacheKey(period) {
+  return `aiSummary_${period}_${todayStr()}`;
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+}
+function renderAiSummaryResult(result) {
+  const body = document.getElementById('aiSummaryBody');
+  const highlightsHtml = result.highlights.length
+    ? `<ul class="ai-summary-highlights">${result.highlights.map(h => `<li>${escapeHtml(h)}</li>`).join('')}</ul>`
+    : '';
+  body.innerHTML = `
+    <div class="ai-summary-text">${escapeHtml(result.summary)}</div>
+    ${highlightsHtml}
+    <div class="ai-summary-meta">Сгенерировано ИИ на основе ваших операций</div>
+  `;
+}
+function loadCachedAiSummary(period) {
+  try {
+    const raw = localStorage.getItem(aiSummaryCacheKey(period));
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function saveCachedAiSummary(period, result) {
+  try { localStorage.setItem(aiSummaryCacheKey(period), JSON.stringify(result)); } catch (e) { /* not critical */ }
+}
+
+async function requestAiSummary() {
+  const btn = document.getElementById('aiSummaryBtn');
+  const body = document.getElementById('aiSummaryBody');
+  const stats = computeSummaryStats(aiSummaryPeriod);
+  if (!stats.transactionCount) {
+    body.innerHTML = `<div class="empty-note">Нет операций за ${stats.label} — сводка пока не нужна.</div>`;
+    return;
+  }
+  aiSummaryLoading = true;
+  btn.disabled = true;
+  const prevLabel = btn.textContent;
+  btn.textContent = 'Генерируем…';
+  body.innerHTML = `<div class="empty-note">ИИ анализирует операции за ${stats.label}…</div>`;
+  const result = await callAiSummary(stats);
+  aiSummaryLoading = false;
+  btn.disabled = false;
+  btn.textContent = prevLabel;
+  if (!result) {
+    body.innerHTML = `<div class="empty-note">Не удалось получить ИИ-сводку. Попробуйте позже.</div>`;
+    return;
+  }
+  renderAiSummaryResult(result);
+  saveCachedAiSummary(aiSummaryPeriod, result);
+  logAiAction('summary', 'period', null, stats, result, null, 'generated');
+}
+
+function initAiSummaryPanel() {
+  if (aiSummaryLoading) return;
+  const cached = loadCachedAiSummary(aiSummaryPeriod);
+  if (cached) renderAiSummaryResult(cached);
+  else document.getElementById('aiSummaryBody').innerHTML = `<div class="empty-note" id="aiSummaryEmpty">Нажмите «Получить сводку», чтобы ИИ кратко описал траты за период.</div>`;
+}
+
+document.getElementById('aiSummaryWeekBtn').addEventListener('click', () => {
+  aiSummaryPeriod = 'week';
+  document.getElementById('aiSummaryWeekBtn').classList.add('active');
+  document.getElementById('aiSummaryMonthBtn').classList.remove('active');
+  initAiSummaryPanel();
+});
+document.getElementById('aiSummaryMonthBtn').addEventListener('click', () => {
+  aiSummaryPeriod = 'month';
+  document.getElementById('aiSummaryMonthBtn').classList.add('active');
+  document.getElementById('aiSummaryWeekBtn').classList.remove('active');
+  initAiSummaryPanel();
+});
+document.getElementById('aiSummaryBtn').addEventListener('click', requestAiSummary);
+
 function syncQuickCatButtons() {
   const current = document.getElementById('categorySelect').value;
   document.querySelectorAll('.quick-cat-btn').forEach(btn => {
@@ -3538,6 +3705,7 @@ function renderEverything() {
   populateCategorySelect();
   populateIncomeCategorySelect();
   renderSummary();
+  initAiSummaryPanel();
   renderTable();
   renderDynamicsChart();
   renderCategoryPie('incomeChart', 'incomeChartBox', 'income');
