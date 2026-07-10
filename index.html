@@ -370,6 +370,25 @@
   }
   .quick-cat-btn:hover { border-color: var(--expense-accent); color: var(--expense-accent); }
   .quick-cat-btn.active { background: var(--expense-accent); border-color: var(--expense-accent); color: #fff; }
+  .cat-suggestion {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: var(--info-bg);
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: #0C2B44;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+  }
+  .cat-suggestion span { flex: 1; min-width: 140px; }
+  .ai-toggle-label {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11.5px; font-weight: 600; color: var(--text-secondary);
+    cursor: pointer; white-space: nowrap;
+  }
+  .ai-toggle-label input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--info-accent); cursor: pointer; }
   .kind-toggle {
     display: flex;
     gap: 8px;
@@ -822,7 +841,12 @@
   <div class="main-grid">
     <!-- FORM -->
     <div class="panel">
-      <h2>Новая операция</h2>
+      <h2 style="justify-content:space-between;">
+        <span>Новая операция</span>
+        <label class="ai-toggle-label" title="Подсказывать категорию по правилам, истории и словарю">
+          <input type="checkbox" id="aiAutoCatToggle"> 🤖 Автокатегория
+        </label>
+      </h2>
       <div class="kind-toggle">
         <button type="button" id="btnKindIncome" class="active income-active">Доход</button>
         <button type="button" id="btnKindExpense">Расход</button>
@@ -849,6 +873,11 @@
             <input type="text" id="newNameInput" placeholder="Например: Ипотека">
             <button type="button" class="btn-secondary" id="newNameSave">+</button>
           </div>
+        </div>
+        <div class="cat-suggestion" id="catSuggestion" style="display:none;">
+          <span id="catSuggestionText"></span>
+          <button type="button" class="btn-tiny" id="catSuggestionAcceptBtn">Подтвердить</button>
+          <button type="button" class="btn-tiny" id="catSuggestionDismissBtn">Не сейчас</button>
         </div>
       </div>
 
@@ -1311,9 +1340,12 @@ let state = {
   shoppingNotes: [],
   incomeDynamicsView: 'day', // 'day' | 'month'
   dynamicsView: 'month', // 'day' | 'month'
+  categoryRules: [],
 };
 
 let currentUser = null;
+let categoryManuallySet = false;
+let pendingSuggestion = null;
 
 function toast(msg, duration = 2200) {
   const t = document.getElementById('toast');
@@ -1658,27 +1690,31 @@ async function loadAll() {
     const shoppingQuery = supabaseClient.from('shopping_list').select('*').order('planned_date', { ascending: true });
     const incomeQuery = supabaseClient.from('expected_income').select('*').order('expected_date', { ascending: true });
     const notesQuery = supabaseClient.from('shopping_notes').select('*').order('created_at', { ascending: true });
+    const rulesQuery = supabaseClient.from('category_rules').select('*').eq('is_active', true);
     if (currentUser) {
       txQuery.eq('user_id', currentUser.id);
       debtQuery.eq('user_id', currentUser.id);
       shoppingQuery.eq('user_id', currentUser.id);
       incomeQuery.eq('user_id', currentUser.id);
       notesQuery.eq('user_id', currentUser.id);
+      rulesQuery.eq('user_id', currentUser.id);
     } else {
       txQuery.is('user_id', null);
       debtQuery.is('user_id', null);
       shoppingQuery.is('user_id', null);
       incomeQuery.is('user_id', null);
       notesQuery.is('user_id', null);
+      rulesQuery.is('user_id', null);
     }
 
-    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }] = await withTimeout(Promise.all([
+    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }, { data: rules, error: rulesErr }] = await withTimeout(Promise.all([
       supabaseClient.from('categories').select('*').order('created_at'),
       txQuery,
       debtQuery,
       shoppingQuery,
       incomeQuery,
       notesQuery,
+      rulesQuery,
     ]), 15000, 'Сервер не отвечает — проверьте интернет-соединение');
     if (catErr) { toast('Ошибка загрузки категорий: ' + catErr.message); return; }
     if (txErr) { toast('Ошибка загрузки операций: ' + txErr.message); return; }
@@ -1686,12 +1722,14 @@ async function loadAll() {
     if (shoppingErr) { toast('Ошибка загрузки списка покупок: ' + shoppingErr.message); return; }
     if (incomeErr) { toast('Ошибка загрузки ожидаемых доходов: ' + incomeErr.message); return; }
     if (notesErr) { toast('Ошибка загрузки заметок: ' + notesErr.message); return; }
+    if (rulesErr) { toast('Ошибка загрузки правил категоризации: ' + rulesErr.message); return; }
     state.categories = cats || [];
     state.transactions = txs || [];
     state.debts = debts || [];
     state.shoppingList = shopping || [];
     state.expectedIncome = income || [];
     state.shoppingNotes = notes || [];
+    state.categoryRules = rules || [];
 
     if (!state.selectedMonth) {
       const now = new Date();
@@ -1770,6 +1808,9 @@ document.getElementById('dynamicsByMonthBtn').addEventListener('click', () => {
 
 function setKind(kind) {
   state.kind = kind;
+  categoryManuallySet = false;
+  pendingSuggestion = null;
+  hideCatSuggestion();
   document.getElementById('btnKindIncome').classList.toggle('active', kind === 'income');
   document.getElementById('btnKindIncome').classList.toggle('income-active', kind === 'income');
   document.getElementById('btnKindExpense').classList.toggle('active', kind === 'expense');
@@ -1852,6 +1893,7 @@ function populateCategorySelect() {
 
   // toggle Название sub-select
   sel.onchange = () => {
+    categoryManuallySet = true;
     if (sel.value === '__new__') {
       document.getElementById('newCatInline').classList.add('visible');
       document.getElementById('nameRow').classList.remove('visible');
@@ -1872,6 +1914,8 @@ function populateCategorySelect() {
       sel.value = lastUsed.category;
     }
     sel.dispatchEvent(new Event('change'));
+    // The dispatch above is a default restore, not a real user pick.
+    categoryManuallySet = false;
   }
 }
 
@@ -1912,6 +1956,169 @@ function findCategoryMatch(text, kind) {
   }
   return null;
 }
+
+/* ---------------- AUTO-CATEGORIZATION (rules → history → dictionary) ---------------- */
+
+function normalizeText(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[.,!?"'«»()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getAiSettings() {
+  try {
+    const raw = localStorage.getItem('aiSettings');
+    return Object.assign({ autoCategorize: true, confidenceThreshold: 0.9 }, raw ? JSON.parse(raw) : {});
+  } catch (e) { return { autoCategorize: true, confidenceThreshold: 0.9 }; }
+}
+function setAiSettings(patch) {
+  try {
+    localStorage.setItem('aiSettings', JSON.stringify(Object.assign(getAiSettings(), patch)));
+  } catch (e) { /* localStorage unavailable — not critical */ }
+}
+
+// Priority 1: an explicit rule the user previously taught (or confirmed) for
+// this exact comment text.
+function findRuleMatch(normalizedComment, kind) {
+  const rule = state.categoryRules.find(r => r.kind === kind && normalizedComment.includes(r.normalized_value));
+  if (!rule) return null;
+  return { category: rule.category, subcategory: rule.subcategory || null, confidence: 0.95, source: 'user_rule' };
+}
+
+// Priority 2: past transactions with a similar comment — the more of them
+// agree on the same category, the higher the confidence.
+function findHistoryMatch(normalizedComment, kind) {
+  if (normalizedComment.length < 3) return null;
+  const matches = state.transactions.filter(t =>
+    t.kind === kind && t.comment && normalizeText(t.comment).includes(normalizedComment)
+  );
+  if (!matches.length) return null;
+  const counts = {};
+  matches.forEach(t => {
+    const key = t.category + '|' + (t.subcategory || '');
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  const [bestKey, bestCount] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  const [category, subcategory] = bestKey.split('|');
+  const agreement = bestCount / matches.length;
+  // More matching history and stronger agreement across it both raise confidence.
+  const confidence = Math.min(0.5 + agreement * 0.25 + Math.min(matches.length, 5) * 0.03, 0.89);
+  return { category, subcategory: subcategory || null, confidence, source: 'history' };
+}
+
+// Priority 3: a small built-in keyword dictionary, matched only against
+// categories that actually exist for this user — never invents a category.
+const CATEGORY_KEYWORD_DICTIONARY = [
+  { keywords: ['магазин', 'супермаркет', 'продукт', 'магнум', 'магнит', 'ашан', 'пятерочка', 'пятёрочка'], categoryHint: 'продукт' },
+  { keywords: ['азс', 'бензин', 'топливо', 'заправка'], categoryHint: 'авто' },
+  { keywords: ['кафе', 'ресторан', 'доставка еды', 'wolt', 'кофе'], categoryHint: 'ресторан' },
+  { keywords: ['школа', 'садик', 'секция', 'кружок'], categoryHint: 'дет' },
+  { keywords: ['аптека', 'лекарств', 'витамин'], categoryHint: 'аптек' },
+  { keywords: ['коммуналк', 'электричеств', 'интернет', 'квартплат'], categoryHint: 'обязательн' },
+  { keywords: ['кредит', 'ипотек', 'рассрочк'], categoryHint: 'кредит' },
+];
+function findDictionaryMatch(normalizedComment, kind) {
+  const entry = CATEGORY_KEYWORD_DICTIONARY.find(e => e.keywords.some(kw => normalizedComment.includes(kw)));
+  if (!entry) return null;
+  const cats = state.categories.filter(c => c.kind === kind && c.name.toLowerCase().includes(entry.categoryHint));
+  if (!cats.length) return null;
+  return { category: cats[0].name, subcategory: null, confidence: 0.75, source: 'dictionary' };
+}
+
+function suggestCategoryForComment(comment, kind) {
+  const normalized = normalizeText(comment);
+  if (!normalized) return null;
+  return findRuleMatch(normalized, kind) || findHistoryMatch(normalized, kind) || findDictionaryMatch(normalized, kind);
+}
+
+async function logAiAction(actionType, entityType, entityId, requestData, responseData, confidence, status) {
+  if (!isConfigured || !supabaseClient) return;
+  try {
+    await supabaseClient.from('ai_actions').insert({
+      user_id: currentUser ? currentUser.id : null,
+      action_type: actionType, entity_type: entityType, entity_id: entityId,
+      request_data: requestData, response_data: responseData, confidence, status,
+    });
+  } catch (e) { /* logging must never block the actual user action */ }
+}
+
+function labelForSuggestion(s) {
+  return s.category + (s.subcategory ? ' · ' + s.subcategory : '');
+}
+function showCatSuggestion(s) {
+  document.getElementById('catSuggestionText').textContent = `Предполагаемая категория: ${labelForSuggestion(s)}`;
+  document.getElementById('catSuggestion').style.display = 'flex';
+}
+function hideCatSuggestion() {
+  document.getElementById('catSuggestion').style.display = 'none';
+}
+function applyCategorySuggestion(s) {
+  const sel = document.getElementById('categorySelect');
+  if (![...sel.options].some(o => o.value === s.category)) return;
+  sel.value = s.category;
+  sel.dispatchEvent(new Event('change'));
+  categoryManuallySet = false;
+  if (s.subcategory) {
+    const nameSel = document.getElementById('nameSelect');
+    if ([...nameSel.options].some(o => o.value === s.subcategory)) nameSel.value = s.subcategory;
+  }
+}
+
+document.getElementById('catSuggestionAcceptBtn').addEventListener('click', () => {
+  if (pendingSuggestion) applyCategorySuggestion(pendingSuggestion);
+  pendingSuggestion = null;
+  hideCatSuggestion();
+});
+document.getElementById('catSuggestionDismissBtn').addEventListener('click', () => {
+  pendingSuggestion = null;
+  hideCatSuggestion();
+});
+
+const aiAutoCatToggle = document.getElementById('aiAutoCatToggle');
+aiAutoCatToggle.checked = getAiSettings().autoCategorize;
+aiAutoCatToggle.addEventListener('change', () => {
+  setAiSettings({ autoCategorize: aiAutoCatToggle.checked });
+  if (!aiAutoCatToggle.checked) { pendingSuggestion = null; hideCatSuggestion(); }
+});
+
+document.getElementById('commentInput').addEventListener('blur', () => {
+  // Note: pendingSuggestion is intentionally NOT cleared unconditionally here.
+  // A redundant re-blur (e.g. the user refocuses the comment then clicks away
+  // again without changing it) must not wipe out a still-relevant suggestion
+  // the submit handler hasn't logged yet.
+  const settings = getAiSettings();
+  if (!settings.autoCategorize) { hideCatSuggestion(); return; }
+  const comment = document.getElementById('commentInput').value.trim();
+  if (comment.length < 3) { hideCatSuggestion(); return; }
+
+  const suggestion = suggestCategoryForComment(comment, state.kind);
+  if (!suggestion || suggestion.confidence < 0.5) { hideCatSuggestion(); return; }
+
+  const sel = document.getElementById('categorySelect');
+  const currentCat = sel.value;
+  const currentSub = document.getElementById('nameRow').classList.contains('visible')
+    ? document.getElementById('nameSelect').value : null;
+  if (suggestion.category === currentCat && (suggestion.subcategory || null) === (currentSub || null)) {
+    hideCatSuggestion();
+    return;
+  }
+
+  // pendingSuggestion is kept set (not cleared) after an auto-apply too — the
+  // submit handler needs it to log whether the applied category was actually
+  // kept (accepted) or changed again before saving (corrected).
+  pendingSuggestion = suggestion;
+  if (!categoryManuallySet && suggestion.confidence >= settings.confidenceThreshold) {
+    applyCategorySuggestion(suggestion);
+    toast(`Категория определена: ${labelForSuggestion(suggestion)}`);
+  } else if (!categoryManuallySet && suggestion.confidence >= 0.70) {
+    applyCategorySuggestion(suggestion);
+    toast(`Похоже на «${labelForSuggestion(suggestion)}» — проверьте категорию`, 3500);
+  } else {
+    showCatSuggestion(suggestion);
+  }
+});
 
 function syncQuickCatButtons() {
   const current = document.getElementById('categorySelect').value;
@@ -2035,11 +2242,29 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   const { error } = await supabaseClient.from('transactions').insert(payloads);
   if (error) { toast('Ошибка: ' + error.message); return; }
   saveLastUsedTx(state.kind, category, subcategory);
+
+  if (comment) {
+    const normalized = normalizeText(comment);
+    if (pendingSuggestion) {
+      const wasAccepted = pendingSuggestion.category === category && (pendingSuggestion.subcategory || null) === subcategory;
+      logAiAction('categorization', 'transaction', null, { comment, kind: state.kind }, pendingSuggestion, pendingSuggestion.confidence, wasAccepted ? 'accepted' : 'corrected');
+    }
+    const hasRule = state.categoryRules.some(r => r.kind === state.kind && r.normalized_value === normalized);
+    if (!hasRule && normalized.length >= 3 && confirm(`Запомнить категорию «${category}${subcategory ? ' · ' + subcategory : ''}» для «${comment}»?`)) {
+      const { error: ruleErr } = await supabaseClient.from('category_rules').insert({
+        user_id: userId, kind: state.kind, match_type: 'contains', match_value: comment, normalized_value: normalized, category, subcategory,
+      });
+      if (ruleErr) toast('Не удалось сохранить правило: ' + ruleErr.message);
+    }
+  }
+  pendingSuggestion = null;
+
   toast(isRecurring ? `Добавлено платежей: ${payloads.length}` : 'Операция добавлена');
   document.getElementById('amountInput').value = '';
   document.getElementById('commentInput').value = '';
   document.getElementById('recurringCheckbox').checked = false;
   document.getElementById('recurringEndDateRow').style.display = 'none';
+  hideCatSuggestion();
   await loadAll();
 });
 
