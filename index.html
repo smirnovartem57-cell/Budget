@@ -503,6 +503,7 @@
   }
   .amount-income { color: var(--income-accent); font-weight: 700; }
   .amount-expense { color: var(--expense-accent); font-weight: 700; }
+  .amount-paid { color: var(--income-accent) !important; }
   .del-btn {
     background: transparent;
     border: none;
@@ -2486,19 +2487,23 @@ async function deleteRecurringGroup(groupId) {
 
 function renderRecurring() {
   const groups = {};
+  const today = new Date().toISOString().slice(0, 10);
+  const currentMonthKey = today.slice(0, 7);
   state.transactions.forEach(t => {
     if (!t.is_recurring || !t.recurring_group_id) return;
     if (!groups[t.recurring_group_id]) {
       groups[t.recurring_group_id] = {
         category: t.category, subcategory: t.subcategory, amount: Number(t.amount),
-        endDate: t.recurring_end_date, minDate: t.date,
+        endDate: t.recurring_end_date, minDate: t.date, currentMonthDate: null,
       };
     } else if (t.date < groups[t.recurring_group_id].minDate) {
       groups[t.recurring_group_id].minDate = t.date;
     }
+    if (t.date.slice(0, 7) === currentMonthKey) {
+      groups[t.recurring_group_id].currentMonthDate = t.date;
+    }
   });
 
-  const today = new Date().toISOString().slice(0, 10);
   const { key, dir } = state.recurringSort;
   const active = Object.entries(groups).filter(([, g]) => !g.endDate || g.endDate >= today);
   if (key === 'amount') {
@@ -2521,10 +2526,11 @@ function renderRecurring() {
     const tr = document.createElement('tr');
     const startFmt = new Date(g.minDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const endFmt = g.endDate ? new Date(g.endDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+    const isPaid = g.currentMonthDate && g.currentMonthDate <= today;
     tr.innerHTML = `
       <td><span class="cat-badge">${g.subcategory ? `${g.category} · ${g.subcategory}` : g.category}</span></td>
       <td>${startFmt}${endFmt ? `<div class="days-remaining">до ${endFmt}</div>` : ''}</td>
-      <td style="text-align:right;" class="amount-expense">${fmt.format(g.amount)}</td>
+      <td style="text-align:right;" class="amount-expense ${isPaid ? 'amount-paid' : ''}" title="${isPaid ? 'Платёж за этот месяц уже прошёл' : ''}">${fmt.format(g.amount)}</td>
       <td><button class="del-btn" onclick="deleteRecurringGroup('${groupId}')">✕</button></td>
     `;
     tbody.appendChild(tr);
