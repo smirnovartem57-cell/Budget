@@ -2317,16 +2317,35 @@ async function markIncomeReceived(id) {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
   const item = state.expectedIncome.find(i => i.id === id);
   if (!item) return;
-  if (!confirm(`Отметить «${item.name}» как полученное и добавить в доходы?`)) return;
-  const { error: insErr } = await supabaseClient.from('transactions').insert({
+  const targetDate = item.expected_date || todayStr();
+  // Avoid inserting a duplicate operation if this expected income was already
+  // recorded in Операции for the same date/amount/name.
+  const alreadyAdded = state.transactions.some(t =>
+    t.kind === 'income' && t.date === targetDate &&
+    Number(t.amount) === Number(item.amount) && t.comment === item.name
+  );
+  if (alreadyAdded) { toast('Уже добавлено в операции на эту дату'); return; }
+  const dateLabel = new Date(targetDate).toLocaleDateString('ru-RU');
+  if (!confirm(`Добавить «${item.name}» (${fmt.format(item.amount)}) в операции на ${dateLabel}?`)) return;
+  const { error } = await supabaseClient.from('transactions').insert({
     kind: 'income', category: item.category || 'Другое', subcategory: null,
-    amount: item.amount, date: new Date().toISOString().slice(0, 10),
+    amount: item.amount, date: targetDate,
     comment: item.name, user_id: currentUser ? currentUser.id : null,
   });
-  if (insErr) { toast('Ошибка: ' + insErr.message); return; }
-  const { error: delErr } = await supabaseClient.from('expected_income').delete().eq('id', id);
-  if (delErr) { toast('Ошибка при удалении из списка: ' + delErr.message); return; }
-  toast('Отмечено как полученное — добавлено в доходы');
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Добавлено в операции');
+  await loadAll();
+}
+
+// Purely a visual "money arrived" marker — never touches Операции or removes
+// the row, unlike markIncomeReceived above which records an actual transaction.
+async function toggleIncomeReceivedFlag(id) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const item = state.expectedIncome.find(i => i.id === id);
+  if (!item) return;
+  const { error } = await supabaseClient.from('expected_income').update({ is_received: !item.is_received }).eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast(!item.is_received ? 'Отмечено: деньги пришли' : 'Отметка снята');
   await loadAll();
 }
 
@@ -2364,7 +2383,7 @@ function renderExpectedIncome() {
       <td><input type="text" class="inline-name-input" value="${escapeAttr(item.name)}" onchange="updateIncomeField('${item.id}','name', this.value)"></td>
       <td>
         <input type="date" class="shopping-date-input" value="${item.expected_date || ''}" min="2020-01-01" max="2099-12-31" onchange="updateIncomeDate('${item.id}', this.value)">
-        ${remaining ? `<div class="days-remaining ${remaining.overdue ? 'overdue' : ''}">${remaining.text}</div>` : ''}
+        ${remaining && !remaining.overdue ? `<div class="days-remaining">${remaining.text}</div>` : ''}
       </td>
       <td style="text-align:right;">
         <input type="text" inputmode="numeric" class="inline-amount-input" value="${fmt.format(item.amount)}"
@@ -2374,6 +2393,7 @@ function renderExpectedIncome() {
       </td>
       <td style="white-space:nowrap;">
         <button class="btn-tiny" onclick="markIncomeReceived('${item.id}')">Получено</button>
+        <button class="btn-tiny ${item.is_received ? 'active' : ''}" onclick="toggleIncomeReceivedFlag('${item.id}')">${item.is_received ? '✓ Получил' : 'Получил'}</button>
         <button class="del-btn" onclick="deleteExpectedIncome('${item.id}')">✕</button>
       </td>
     `;
