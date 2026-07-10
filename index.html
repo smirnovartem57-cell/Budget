@@ -357,6 +357,19 @@
     color: var(--text-secondary);
     margin-bottom: 6px;
   }
+  .quick-cat-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .quick-cat-btn {
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .quick-cat-btn:hover { border-color: var(--expense-accent); color: var(--expense-accent); }
+  .quick-cat-btn.active { background: var(--expense-accent); border-color: var(--expense-accent); color: #fff; }
   .kind-toggle {
     display: flex;
     gap: 8px;
@@ -819,6 +832,11 @@
 
       <div class="form-row">
         <label>Категория</label>
+        <div class="quick-cat-row" id="quickCatRow" style="display:none;">
+          <button type="button" class="quick-cat-btn" data-cat="Кредит">Кредит</button>
+          <button type="button" class="quick-cat-btn" data-cat="Обязательный">Обязательный</button>
+          <button type="button" class="quick-cat-btn" data-cat="Покупки">Покупки</button>
+        </div>
         <select id="categorySelect"></select>
         <div class="new-cat-inline" id="newCatInline">
           <input type="text" id="newCatName" placeholder="Название категории">
@@ -1757,6 +1775,7 @@ function setKind(kind) {
   document.getElementById('btnKindExpense').classList.toggle('active', kind === 'expense');
   document.getElementById('btnKindExpense').classList.toggle('expense-active', kind === 'expense');
   document.getElementById('recurringRow').style.display = kind === 'expense' ? 'block' : 'none';
+  document.getElementById('quickCatRow').style.display = kind === 'expense' ? 'flex' : 'none';
   if (kind === 'income') {
     document.getElementById('recurringCheckbox').checked = false;
     document.getElementById('recurringEndDateRow').style.display = 'none';
@@ -1845,6 +1864,7 @@ function populateCategorySelect() {
         document.getElementById('nameRow').classList.remove('visible');
       }
     }
+    syncQuickCatButtons();
   };
   if (list.length) {
     const lastUsed = getLastUsedTx(state.kind);
@@ -1859,6 +1879,58 @@ function namesForCategory(categoryName) {
   const nameKind = state.kind === 'income' ? 'income_name' : 'expense_name';
   return state.categories.filter(c => c.kind === nameKind && c.parent_category === categoryName).map(c => c.name);
 }
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// A plain \b word boundary only recognizes [A-Za-z0-9_] as "word" characters,
+// so it silently fails to find a boundary around Cyrillic text (neither side
+// of e.g. a space-to-"и" transition counts as one) — \p{L}/\p{N} lookarounds
+// work for any Unicode letters/digits instead.
+function wordBoundaryRegex(word) {
+  return new RegExp('(?<![\\p{L}\\p{N}])' + escapeRegex(word) + '(?![\\p{L}\\p{N}])', 'iu');
+}
+
+// Matches spoken text against EXISTING categories/subcategories (never
+// creates new ones) — subcategories are checked first since a subcategory
+// match also pins down its parent category, which is more useful than a
+// bare category match.
+function findCategoryMatch(text, kind) {
+  const nameKind = kind === 'income' ? 'income_name' : 'expense_name';
+  const subcats = state.categories.filter(c => c.kind === nameKind);
+  for (const sc of subcats) {
+    if (wordBoundaryRegex(sc.name).test(text)) {
+      return { category: sc.parent_category, subcategory: sc.name, matchText: sc.name };
+    }
+  }
+  const cats = state.categories.filter(c => c.kind === kind);
+  for (const c of cats) {
+    if (wordBoundaryRegex(c.name).test(text)) {
+      return { category: c.name, subcategory: null, matchText: c.name };
+    }
+  }
+  return null;
+}
+
+function syncQuickCatButtons() {
+  const current = document.getElementById('categorySelect').value;
+  document.querySelectorAll('.quick-cat-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.cat === current);
+  });
+}
+
+document.querySelectorAll('.quick-cat-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const sel = document.getElementById('categorySelect');
+    if (![...sel.options].some(o => o.value === btn.dataset.cat)) {
+      toast(`Категория «${btn.dataset.cat}» ещё не создана`);
+      return;
+    }
+    sel.value = btn.dataset.cat;
+    sel.dispatchEvent(new Event('change'));
+  });
+});
 
 // Remembers the last category/name used per kind (income/expense), so the
 // form pre-selects it next time instead of always resetting to the first
@@ -2317,17 +2389,38 @@ wireVoiceButton(notepadMicBtn, addShoppingNote);
 
 // Comment field for Новая операция: extract a leading amount ("500 рублей на
 // такси" -> amount 500, comment "на такси") if the amount field is still
-// empty, otherwise just dictate straight into the comment.
+// empty, and match spoken words against existing categories/subcategories
+// so voice entries land in the right place instead of always needing the
+// dropdowns touched by hand.
 wireVoiceButton(document.getElementById('txMicBtn'), async (transcript) => {
   const commentInput = document.getElementById('commentInput');
   const amountInput = document.getElementById('amountInput');
-  const match = transcript.match(/\d+([.,]\d+)?/);
-  let comment = transcript;
-  if (match && !amountInput.value) {
-    amountInput.value = match[0].replace(',', '.');
-    comment = (transcript.slice(0, match.index) + transcript.slice(match.index + match[0].length)).trim();
+  let remaining = transcript;
+
+  const amountMatch = remaining.match(/\d+([.,]\d+)?/);
+  if (amountMatch && !amountInput.value) {
+    amountInput.value = amountMatch[0].replace(',', '.');
+    remaining = remaining.slice(0, amountMatch.index) + remaining.slice(amountMatch.index + amountMatch[0].length);
   }
-  commentInput.value = comment;
+
+  const catMatch = findCategoryMatch(remaining, state.kind);
+  if (catMatch) {
+    const sel = document.getElementById('categorySelect');
+    if ([...sel.options].some(o => o.value === catMatch.category)) {
+      sel.value = catMatch.category;
+      sel.dispatchEvent(new Event('change'));
+      if (catMatch.subcategory) {
+        const nameSel = document.getElementById('nameSelect');
+        if ([...nameSel.options].some(o => o.value === catMatch.subcategory)) {
+          nameSel.value = catMatch.subcategory;
+        }
+      }
+      toast(`Категория: ${catMatch.category}${catMatch.subcategory ? ' · ' + catMatch.subcategory : ''}`);
+      remaining = remaining.replace(wordBoundaryRegex(catMatch.matchText), '');
+    }
+  }
+
+  commentInput.value = remaining.trim();
 });
 
 function escapeAttr(s) {
