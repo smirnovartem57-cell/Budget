@@ -668,6 +668,24 @@
     opacity: 0;
   }
 
+  .reload-banner {
+    display: none;
+    position: sticky; top: 0; z-index: 150;
+    align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px 14px;
+    background: var(--expense-accent); color: #fff;
+    padding: 10px 16px;
+    font-size: 13px; font-weight: 600;
+    text-align: center;
+  }
+  .reload-banner.visible { display: flex; }
+  .reload-banner button {
+    background: #fff; color: var(--expense-accent);
+    border: none; border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 12.5px; font-weight: 700;
+    cursor: pointer;
+  }
+
   .voice-status-bar {
     position: fixed; left: 0; right: 0; bottom: 0;
     background: var(--expense-accent); color: #fff;
@@ -1281,6 +1299,10 @@
 
 <div class="toast" id="toast"></div>
 <div class="loading-bar" id="loadingBar"></div>
+<div class="reload-banner" id="reloadBanner">
+  <span>Не удалось загрузить данные. Проверьте интернет-соединение.</span>
+  <button type="button" id="reloadRetryBtn">Повторить</button>
+</div>
 
 <div class="voice-status-bar" id="voiceStatusBar" style="display:none;">
   <span class="voice-status-dot"></span>
@@ -1371,6 +1393,17 @@ function hideLoadingBar() {
   bar.classList.add('done');
   bar.__hideTimer = setTimeout(() => bar.classList.remove('active', 'done'), 300);
 }
+
+// Persistent banner (as opposed to the easy-to-miss toast) shown when loadAll()
+// fails, so a transient hiccup never looks like "the app is broken/empty" with
+// no obvious next step.
+function showReloadBanner() {
+  document.getElementById('reloadBanner').classList.add('visible');
+}
+function hideReloadBanner() {
+  document.getElementById('reloadBanner').classList.remove('visible');
+}
+document.getElementById('reloadRetryBtn').addEventListener('click', () => loadAll());
 
 // On a flaky connection a fetch can hang indefinitely — never resolving, never
 // rejecting — which no try/catch can detect. This races it against a timer so
@@ -1680,6 +1713,7 @@ async function loadAll() {
     return;
   }
   showLoadingBar();
+  hideReloadBanner();
   try {
     const { data: { session } } = await withTimeout(supabaseClient.auth.getSession(), 12000, 'Сервер не отвечает — проверьте интернет-соединение');
     currentUser = session ? session.user : null;
@@ -1716,13 +1750,16 @@ async function loadAll() {
       notesQuery,
       rulesQuery,
     ]), 15000, 'Сервер не отвечает — проверьте интернет-соединение');
-    if (catErr) { toast('Ошибка загрузки категорий: ' + catErr.message); return; }
-    if (txErr) { toast('Ошибка загрузки операций: ' + txErr.message); return; }
-    if (debtErr) { toast('Ошибка загрузки долгов: ' + debtErr.message); return; }
-    if (shoppingErr) { toast('Ошибка загрузки списка покупок: ' + shoppingErr.message); return; }
-    if (incomeErr) { toast('Ошибка загрузки ожидаемых доходов: ' + incomeErr.message); return; }
-    if (notesErr) { toast('Ошибка загрузки заметок: ' + notesErr.message); return; }
-    if (rulesErr) { toast('Ошибка загрузки правил категоризации: ' + rulesErr.message); return; }
+    const loadErrors = [
+      [catErr, 'категорий'], [txErr, 'операций'], [debtErr, 'долгов'],
+      [shoppingErr, 'списка покупок'], [incomeErr, 'ожидаемых доходов'],
+      [notesErr, 'заметок'], [rulesErr, 'правил категоризации'],
+    ].filter(([e]) => e);
+    if (loadErrors.length) {
+      toast('Ошибка загрузки ' + loadErrors.map(([, label]) => label).join(', ') + ': ' + loadErrors[0][0].message, 5000);
+      showReloadBanner();
+      return;
+    }
     state.categories = cats || [];
     state.transactions = txs || [];
     state.debts = debts || [];
@@ -1743,6 +1780,7 @@ async function loadAll() {
     // throws instead of returning a graceful {error} — without this catch the page
     // is left stuck with nothing rendered and no indication of what went wrong.
     toast('Не удалось подключиться к серверу: ' + (err.message || 'проверьте интернет-соединение'), 5000);
+    showReloadBanner();
   } finally {
     hideLoadingBar();
   }
