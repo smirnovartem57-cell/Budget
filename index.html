@@ -857,6 +857,11 @@
                 <td id="recurringTotalFooter" style="text-align:right; font-weight:700;">0 ₽</td>
                 <td></td>
               </tr>
+              <tr>
+                <td colspan="2" style="font-weight:700;">Осталось оплатить</td>
+                <td id="recurringRemainingFooter" class="amount-expense" style="text-align:right; font-weight:700;">0 ₽</td>
+                <td></td>
+              </tr>
             </tfoot>
           </table>
           <div class="empty-note" id="recurringEmptyNote" style="display:none;">Нет активных ежемесячных расходов</div>
@@ -2521,12 +2526,14 @@ function renderRecurring() {
   tbody.innerHTML = '';
   document.getElementById('recurringEmptyNote').style.display = active.length ? 'none' : 'block';
   let total = 0;
+  let remaining = 0;
   active.forEach(([groupId, g]) => {
     total += g.amount;
     const tr = document.createElement('tr');
     const startFmt = new Date(g.minDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const endFmt = g.endDate ? new Date(g.endDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
     const isPaid = g.currentMonthDate && g.currentMonthDate <= today;
+    if (!isPaid) remaining += g.amount;
     tr.innerHTML = `
       <td><span class="cat-badge">${g.subcategory ? `${g.category} · ${g.subcategory}` : g.category}</span></td>
       <td>${startFmt}${endFmt ? `<div class="days-remaining">до ${endFmt}</div>` : ''}</td>
@@ -2537,6 +2544,7 @@ function renderRecurring() {
   });
   document.getElementById('recurringTotalBadge').textContent = fmt.format(total);
   document.getElementById('recurringTotalFooter').textContent = fmt.format(total);
+  document.getElementById('recurringRemainingFooter').textContent = fmt.format(remaining);
 }
 
 /* ---------------- DELETE TRANSACTION ---------------- */
