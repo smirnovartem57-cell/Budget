@@ -1979,6 +1979,20 @@ function hideReloadBanner() {
 }
 document.getElementById('reloadRetryBtn').addEventListener('click', () => loadAll());
 
+// Cellular connections drop and recover constantly (tower handover, weak signal
+// pockets) — recover automatically instead of leaving the user stuck on the
+// reload banner until they notice and tap it themselves.
+window.addEventListener('online', () => {
+  loadAllRetryCount = 0;
+  loadAll();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && document.getElementById('reloadBanner').classList.contains('visible')) {
+    loadAllRetryCount = 0;
+    loadAll();
+  }
+});
+
 // On a flaky connection a fetch can hang indefinitely — never resolving, never
 // rejecting — which no try/catch can detect. This races it against a timer so
 // the UI always gets an answer (an error) instead of staying stuck forever.
@@ -2285,6 +2299,7 @@ document.getElementById('authSubmitBtn').addEventListener('click', async () => {
 });
 
 /* ---------------- DATA LOADING ---------------- */
+let loadAllRetryCount = 0;
 async function loadAll() {
   if (!isConfigured) {
     renderEverything();
@@ -2358,10 +2373,18 @@ async function loadAll() {
     if (!state.selectedYear) {
       state.selectedYear = String(new Date().getFullYear());
     }
+    loadAllRetryCount = 0;
   } catch (err) {
     // A network-level failure (no internet, DNS/firewall blocking the server, etc.)
-    // throws instead of returning a graceful {error} — without this catch the page
-    // is left stuck with nothing rendered and no indication of what went wrong.
+    // throws instead of returning a graceful {error}. On cellular this is often a
+    // brief, self-resolving hiccup (tower handover, weak signal), so retry silently
+    // with backoff a couple of times before bothering the user with the reload banner.
+    if (loadAllRetryCount < 2) {
+      loadAllRetryCount++;
+      setTimeout(loadAll, loadAllRetryCount * 2000);
+      return;
+    }
+    loadAllRetryCount = 0;
     toast('Не удалось подключиться к серверу: ' + (err.message || 'проверьте интернет-соединение'), 5000);
     showReloadBanner();
   } finally {
