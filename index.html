@@ -384,6 +384,8 @@
     font-weight: 600;
     margin-bottom: 8px;
   }
+  .summary-card.clickable-card { cursor: pointer; transition: box-shadow .15s, border-color .15s; }
+  .summary-card.clickable-card.active-filter { border-color: var(--btn-primary); box-shadow: 0 0 0 2px var(--btn-primary) inset; }
   .summary-card .value {
     font-family: 'Manrope', sans-serif;
     font-size: 28px;
@@ -1387,6 +1389,36 @@
   </div>
 
   <div id="debtsView" style="display:none;">
+    <div class="summary-grid">
+      <div class="summary-card debts">
+        <div class="metric-icon icon-debts"><i data-lucide="hand-coins"></i></div>
+        <div class="label">Непогашенные долги</div>
+        <div class="value" id="debtsTabUnpaidTotal">—</div>
+        <div class="growth-indicator" id="debtsTabUnpaidCount"></div>
+      </div>
+      <div class="summary-card income">
+        <div class="metric-icon icon-income"><i data-lucide="trending-up"></i></div>
+        <div class="label">Доход за месяц</div>
+        <div class="value" id="debtsTabIncomeMonth">—</div>
+        <div class="growth-indicator" id="growthDebtsTabIncome"></div>
+        <div class="sparkline-box"><canvas id="sparkDebtsTabIncome"></canvas></div>
+      </div>
+      <div class="summary-card expense">
+        <div class="metric-icon icon-expense"><i data-lucide="trending-down"></i></div>
+        <div class="label">Расход за месяц</div>
+        <div class="value" id="debtsTabExpenseMonth">—</div>
+        <div class="growth-indicator" id="growthDebtsTabExpense"></div>
+        <div class="sparkline-box"><canvas id="sparkDebtsTabExpense"></canvas></div>
+      </div>
+      <div class="summary-card balance">
+        <div class="metric-icon icon-primary"><i data-lucide="wallet"></i></div>
+        <div class="label">Остаток за месяц</div>
+        <div class="value" id="debtsTabBalance">—</div>
+        <div class="growth-indicator" id="growthDebtsTabBalance"></div>
+        <div class="sparkline-box"><canvas id="sparkDebtsTabBalance"></canvas></div>
+      </div>
+    </div>
+
     <div class="main-grid">
       <!-- DEBT FORM -->
       <div class="panel">
@@ -1421,12 +1453,15 @@
 
         <!-- ALL DEBTS -->
         <div class="panel">
-          <h2 style="justify-content:space-between;">
-            <span>Все долги</span>
+          <h2 style="justify-content:space-between; flex-wrap:wrap; gap:6px;">
+            <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span>Все долги</span>
+              <span class="cat-badge" id="debtsFilterBadge" style="display:none; cursor:pointer; background:var(--info-bg); color:var(--btn-primary);" onclick="toggleDebtsPersonFilter(state.debtsPersonFilter)" title="Сбросить фильтр"></span>
+            </span>
             <span class="badge-info" id="debtsTotalBadge">0 ₽</span>
           </h2>
           <div style="overflow-x:auto;">
-            <table>
+            <table class="responsive-card-table">
               <thead>
                 <tr>
                   <th class="sortable" id="debtsSortDate" data-key="date">Дата</th>
@@ -1809,6 +1844,7 @@ let state = {
   shoppingList: [],
   shoppingSort: { key: null, dir: 'asc' },  // key: 'name' | 'amount' | 'date'
   debtsSort: { key: null, dir: 'asc' },     // key: 'date'
+  debtsPersonFilter: null,
   expectedIncome: [],
   incomeSort: { key: null, dir: 'asc' },    // key: 'name' | 'amount' | 'date'
   shoppingNotes: [],
@@ -3089,18 +3125,57 @@ function computeUnpaidDebtsTotal() {
   return state.debts.filter(d => !d.is_paid).reduce((s, d) => s + Number(d.amount), 0);
 }
 
+function renderDebtsSummary() {
+  const currentMonthKey = todayStr().slice(0, 7);
+  const curMonths = activeMonths();
+  const prevMonths = previousPeriodMonths();
+
+  const expensePeriod = sumForMonths(curMonths, 'expense');
+  const expensePrev = sumForMonths(prevMonths, 'expense');
+  const incomePeriod = sumForMonths(curMonths, 'income');
+  const incomePrev = sumForMonths(prevMonths, 'income');
+  const unpaidTotal = computeUnpaidDebtsTotal();
+  const unpaidCount = state.debts.filter(d => !d.is_paid).length;
+
+  document.getElementById('debtsTabUnpaidTotal').textContent = fmt.format(unpaidTotal);
+  document.getElementById('debtsTabUnpaidCount').textContent = unpaidCount ? `${unpaidCount} ${pluralDolg(unpaidCount)}` : '';
+  document.getElementById('debtsTabIncomeMonth').textContent = fmt.format(incomePeriod);
+  document.getElementById('debtsTabExpenseMonth').textContent = fmt.format(expensePeriod);
+  document.getElementById('debtsTabBalance').textContent = fmt.format(incomePeriod - expensePeriod);
+
+  const gIncome = formatGrowth(incomePeriod, incomePrev);
+  const gExpense = formatGrowth(expensePeriod, expensePrev);
+  const gBalance = formatGrowth(incomePeriod - expensePeriod, incomePrev - expensePrev);
+  const g1 = document.getElementById('growthDebtsTabIncome'); g1.textContent = gIncome.text; g1.className = 'growth-indicator ' + gIncome.dir;
+  const g2 = document.getElementById('growthDebtsTabExpense'); g2.textContent = gExpense.text; g2.className = 'growth-indicator ' + gExpense.dir;
+  const g3 = document.getElementById('growthDebtsTabBalance'); g3.textContent = gBalance.text; g3.className = 'growth-indicator ' + gBalance.dir;
+
+  const sparkMonths = lastNMonthKeys(currentMonthKey, 6);
+  const incomeSeries = sparkMonths.map(k => sumForMonths([k], 'income'));
+  const expenseSeries = sparkMonths.map(k => sumForMonths([k], 'expense'));
+  const balanceSeries = incomeSeries.map((v, i) => v - expenseSeries[i]);
+  renderSparkline('sparkDebtsTabIncome', incomeSeries, getComputedStyle(document.documentElement).getPropertyValue('--income-accent').trim());
+  renderSparkline('sparkDebtsTabExpense', expenseSeries, getComputedStyle(document.documentElement).getPropertyValue('--expense-accent').trim());
+  renderSparkline('sparkDebtsTabBalance', balanceSeries, getComputedStyle(document.documentElement).getPropertyValue('--btn-primary').trim());
+}
+
 function renderDebts() {
   const grid = document.getElementById('debtsByPersonGrid');
   const unpaid = state.debts.filter(d => !d.is_paid);
   const byPerson = {};
-  unpaid.forEach(d => { byPerson[d.debtor_name] = (byPerson[d.debtor_name] || 0) + Number(d.amount); });
+  unpaid.forEach(d => {
+    if (!byPerson[d.debtor_name]) byPerson[d.debtor_name] = { total: 0, count: 0 };
+    byPerson[d.debtor_name].total += Number(d.amount);
+    byPerson[d.debtor_name].count += 1;
+  });
   const people = Object.keys(byPerson).sort();
   grid.innerHTML = people.length
     ? people.map(name => `
-        <div class="summary-card debts">
+        <div class="summary-card debts clickable-card ${state.debtsPersonFilter === name ? 'active-filter' : ''}" onclick="toggleDebtsPersonFilter('${escapeAttr(name).replace(/'/g, "\\'")}')">
           <div class="metric-icon icon-debts"><i data-lucide="hand-coins"></i></div>
-          <div class="label">${name}</div>
-          <div class="value">${fmt.format(byPerson[name])}</div>
+          <div class="label">${escapeHtml(name)}</div>
+          <div class="value">${fmt.format(byPerson[name].total)}</div>
+          <div class="growth-indicator">${byPerson[name].count} ${pluralDolg(byPerson[name].count)}</div>
         </div>
       `).join('')
     : '<div class="empty-note">Пока нет долгов</div>';
@@ -3108,9 +3183,19 @@ function renderDebts() {
   const total = computeUnpaidDebtsTotal();
   document.getElementById('debtsTotalBadge').textContent = fmt.format(total);
 
+  const filterBadge = document.getElementById('debtsFilterBadge');
+  if (state.debtsPersonFilter) {
+    filterBadge.style.display = '';
+    filterBadge.textContent = `${state.debtsPersonFilter} ✕`;
+  } else {
+    filterBadge.style.display = 'none';
+  }
+
   const tbody = document.getElementById('debtsTableBody');
   const { key, dir } = state.debtsSort;
-  const list = state.debts.slice().sort((a, b) => key === 'date'
+  let list = state.debts.slice();
+  if (state.debtsPersonFilter) list = list.filter(d => d.debtor_name === state.debtsPersonFilter);
+  list.sort((a, b) => key === 'date'
     ? a.date.localeCompare(b.date) * (dir === 'asc' ? 1 : -1)
     : b.date.localeCompare(a.date));
   updateSortArrows(state.debtsSort, ['debtsSortDate']);
@@ -3119,23 +3204,58 @@ function renderDebts() {
   list.forEach(d => {
     const tr = document.createElement('tr');
     if (d.is_paid) tr.className = 'debt-row-paid';
-    tr.innerHTML = `
-      <td><input type="date" class="shopping-date-input debts-date-input" value="${d.date}" min="2020-01-01" max="2099-12-31" onchange="updateDebtDate('${d.id}', this.value)"></td>
-      <td><input type="text" class="inline-name-input debts-name-input" value="${escapeAttr(d.debtor_name)}" onchange="updateDebtField('${d.id}','debtor_name', this.value)"></td>
-      <td class="comment-cell debts-comment-cell">${d.comment || ''}</td>
-      <td style="text-align:right;" class="amount-income">
-        <input type="text" inputmode="numeric" class="inline-amount-input debts-amount-input" value="${fmt.format(d.amount)}"
-          onfocus="this.value = String(${d.amount}).replace(/\s/g,'')"
-          onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${d.amount})"
-          onchange="updateDebtField('${d.id}','amount', this.value.replace(/\s/g,'').replace(',', '.'))">
-      </td>
-      <td style="white-space:nowrap;">
-        <button class="btn-tiny icon-btn" onclick="toggleDebtPaid('${d.id}', ${d.is_paid ? 'false' : 'true'})" title="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}">${d.is_paid ? '<i data-lucide="undo-2"></i>' : '<i data-lucide="check"></i>'}</button>
-        <button class="del-btn" onclick="deleteDebt('${d.id}')" title="Удалить" aria-label="Удалить"><i data-lucide="x"></i></button>
-      </td>
-    `;
+    if (debtsEditingIds.has(d.id)) {
+      tr.innerHTML = `
+        <td><input type="date" class="shopping-date-input debts-date-input" value="${d.date}" min="2020-01-01" max="2099-12-31" onchange="updateDebtDate('${d.id}', this.value)"></td>
+        <td><input type="text" class="inline-name-input debts-name-input" value="${escapeAttr(d.debtor_name)}" onchange="updateDebtField('${d.id}','debtor_name', this.value)"></td>
+        <td class="comment-cell debts-comment-cell"><input type="text" class="inline-name-input" value="${escapeAttr(d.comment || '')}" onchange="updateDebtField('${d.id}','comment', this.value)"></td>
+        <td style="text-align:right;">
+          <input type="text" inputmode="numeric" class="inline-amount-input debts-amount-input" value="${fmt.format(d.amount)}"
+            onfocus="this.value = String(${d.amount}).replace(/\s/g,'')"
+            onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${d.amount})"
+            onchange="updateDebtField('${d.id}','amount', this.value.replace(/\s/g,'').replace(',', '.'))">
+        </td>
+        <td style="white-space:nowrap;"><button class="btn-tiny icon-btn active" onclick="toggleDebtEdit('${d.id}')" title="Готово" aria-label="Готово"><i data-lucide="check"></i></button></td>
+      `;
+    } else {
+      tr.innerHTML = `
+        <td>${d.date}</td>
+        <td style="word-break: break-word;">
+          <div style="font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            ${escapeHtml(d.debtor_name)}
+            ${d.is_paid ? '<span class="cat-badge" style="background:var(--income-bg);color:var(--income-accent);">Оплачено</span>' : ''}
+          </div>
+        </td>
+        <td class="comment-cell debts-comment-cell">${d.comment ? escapeHtml(d.comment) : ''}</td>
+        <td style="text-align:right;" class="amount-income">${fmt.format(d.amount)}</td>
+        <td style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
+          <button class="btn-tiny icon-btn" onclick="toggleDebtPaid('${d.id}', ${d.is_paid ? 'false' : 'true'})" title="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}" aria-label="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}">${d.is_paid ? '<i data-lucide="undo-2"></i>' : '<i data-lucide="check"></i>'}</button>
+          <button class="btn-tiny icon-btn" onclick="toggleDebtEdit('${d.id}')" title="Редактировать" aria-label="Редактировать"><i data-lucide="pencil"></i></button>
+          <button class="btn-tiny icon-btn" onclick="openDebtActionMenu('${d.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
+        </td>
+      `;
+    }
     tbody.appendChild(tr);
   });
+}
+
+const debtsEditingIds = new Set();
+function toggleDebtEdit(id) {
+  if (debtsEditingIds.has(id)) debtsEditingIds.delete(id); else debtsEditingIds.add(id);
+  renderDebts();
+  lucide.createIcons();
+}
+
+function openDebtActionMenu(id) {
+  openActionMenu([
+    { label: 'Удалить', icon: 'trash-2', danger: true, onClick: () => deleteDebt(id) },
+  ]);
+}
+
+function toggleDebtsPersonFilter(name) {
+  state.debtsPersonFilter = state.debtsPersonFilter === name ? null : name;
+  renderDebts();
+  lucide.createIcons();
 }
 
 /* ---------------- SHOPPING LIST ---------------- */
@@ -4479,6 +4599,7 @@ function renderEverything() {
   renderDynamicsChart();
   renderCategoryPie('incomeChart', 'incomeChartBox', 'income');
   renderCategoryPie('expenseChart', 'expenseChartBox', 'expense');
+  renderDebtsSummary();
   renderDebts();
   renderRecurring();
   renderShoppingSummary();
