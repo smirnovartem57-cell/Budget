@@ -410,11 +410,30 @@
 
   .summary-card.hero {
     grid-column: 1 / -1;
-    background: linear-gradient(135deg, var(--graphite) 0%, var(--btn-primary) 100%);
+    background: linear-gradient(135deg, #5F8FF5 0%, #88AAF7 55%, #A8B9F4 100%);
     border: none;
+    position: relative;
+    overflow: hidden;
   }
   .summary-card.hero .label, .summary-card.hero .value, .summary-card.hero .growth-indicator { color: #fff; }
-  .summary-card.hero .value { font-size: 34px; }
+  .summary-card.hero .value { font-size: 34px; word-break: break-word; }
+  .hero-top-row { display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 2; }
+  .hero-eye-btn {
+    background: rgba(255,255,255,0.18); border: none; color: #fff;
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .hero-eye-btn svg { width: 16px; height: 16px; }
+  .hero-illustration {
+    position: absolute; right: 14px; bottom: 8px;
+    width: 84px; height: 84px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.14);
+    border-radius: 50%;
+    color: rgba(255,255,255,0.55);
+    pointer-events: none;
+  }
+  .hero-illustration svg { width: 44px; height: 44px; }
   .sparkline-box { position: relative; height: 28px; margin-top: 8px; }
 
   /* main grid */
@@ -927,6 +946,8 @@
     .summary-card .label { font-size: 9.5px; margin-bottom: 4px; }
     .summary-card .value { font-size: 14.5px; }
     .summary-card.hero .value { font-size: 22px; }
+    .hero-illustration { width: 56px; height: 56px; right: 8px; bottom: 6px; }
+    .hero-illustration svg { width: 28px; height: 28px; }
     .growth-indicator { font-size: 9.5px; }
     .metric-icon { width: 28px; height: 28px; margin-bottom: 6px; }
     .metric-icon svg { width: 14px; height: 14px; }
@@ -1107,7 +1128,11 @@
   <div id="budgetView">
   <div class="summary-grid">
     <div class="summary-card balance hero">
-      <div class="metric-icon icon-balance"><i data-lucide="wallet"></i></div>
+      <div class="hero-illustration"><i data-lucide="home"></i></div>
+      <div class="hero-top-row">
+        <div class="metric-icon icon-balance"><i data-lucide="wallet"></i></div>
+        <button type="button" class="hero-eye-btn" id="amountsEyeBtn" title="Скрыть/показать суммы" aria-label="Скрыть/показать суммы"><i data-lucide="eye"></i></button>
+      </div>
       <div class="label" id="labelBalancePeriod">Остаток за месяц</div>
       <div class="value" id="balanceMonth">—</div>
       <div class="growth-indicator" id="growthBalance"></div>
@@ -4453,7 +4478,29 @@ function renderEverything() {
   renderIncomeDynamics();
   renderShoppingNotes();
   lucide.createIcons();
+  applyAmountMasking();
 }
+
+let amountsHidden = localStorage.getItem('amountsHidden') === '1';
+function applyAmountMasking() {
+  const eyeBtn = document.getElementById('amountsEyeBtn');
+  if (eyeBtn) eyeBtn.innerHTML = amountsHidden ? '<i data-lucide="eye-off"></i>' : '<i data-lucide="eye"></i>';
+  document.querySelectorAll('#budgetView .summary-card .value, #recentTxList .recent-tx-amount').forEach(el => {
+    if (amountsHidden) {
+      el.dataset.realText = el.textContent;
+      el.textContent = '••••• ₽';
+    } else if (el.dataset.realText) {
+      el.textContent = el.dataset.realText;
+    }
+  });
+  lucide.createIcons();
+}
+function toggleAmountsHidden() {
+  amountsHidden = !amountsHidden;
+  localStorage.setItem('amountsHidden', amountsHidden ? '1' : '0');
+  applyAmountMasking();
+}
+document.getElementById('amountsEyeBtn').addEventListener('click', toggleAmountsHidden);
 
 loadAll();
 </script>
