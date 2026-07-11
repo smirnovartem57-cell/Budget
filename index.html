@@ -404,8 +404,10 @@
     border-radius: var(--radius-sm);
     display: flex; align-items: center; justify-content: center;
     margin-bottom: 10px;
+    overflow: hidden;
   }
   .metric-icon svg { width: 18px; height: 18px; }
+  .metric-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .metric-icon.icon-income { background: var(--income-bg); color: var(--income-accent); }
   .metric-icon.icon-expense { background: var(--expense-bg); color: var(--expense-accent); }
   .metric-icon.icon-debts { background: var(--warning-bg); color: var(--warning); }
@@ -471,6 +473,7 @@
     gap: 8px;
   }
   .panel h2 svg { width: 16px; height: 16px; vertical-align: -3px; margin-right: 2px; }
+  .panel h2 img.h2-icon { width: 18px; height: 18px; border-radius: 5px; vertical-align: -4px; margin-right: 2px; }
   .panel h2 .badge-info {
     background: var(--info-bg);
     color: var(--text-primary);
@@ -1141,7 +1144,7 @@
     <div class="summary-card balance hero">
       <div class="hero-illustration"><i data-lucide="home"></i></div>
       <div class="hero-top-row">
-        <div class="metric-icon icon-balance"><i data-lucide="wallet"></i></div>
+        <div class="metric-icon icon-balance"><img src="icons/balance.png" alt=""></div>
         <button type="button" class="hero-eye-btn" id="amountsEyeBtn" title="Скрыть/показать суммы" aria-label="Скрыть/показать суммы"><i data-lucide="eye"></i></button>
       </div>
       <div class="label" id="labelBalancePeriod">Остаток за месяц</div>
@@ -1150,21 +1153,21 @@
       <div class="sparkline-box"><canvas id="sparkBalance"></canvas></div>
     </div>
     <div class="summary-card income">
-      <div class="metric-icon icon-income"><i data-lucide="trending-up"></i></div>
+      <div class="metric-icon icon-income"><img src="icons/income.png" alt=""></div>
       <div class="label" id="labelIncomePeriod">Доход за месяц</div>
       <div class="value" id="sumIncomeMonth">—</div>
       <div class="growth-indicator" id="growthIncome"></div>
       <div class="sparkline-box"><canvas id="sparkIncome"></canvas></div>
     </div>
     <div class="summary-card expense">
-      <div class="metric-icon icon-expense"><i data-lucide="trending-down"></i></div>
+      <div class="metric-icon icon-expense"><img src="icons/expense.png" alt=""></div>
       <div class="label" id="labelExpensePeriod">Расход за месяц</div>
       <div class="value" id="sumExpenseMonth">—</div>
       <div class="growth-indicator" id="growthExpense"></div>
       <div class="sparkline-box"><canvas id="sparkExpense"></canvas></div>
     </div>
     <div class="summary-card debts">
-      <div class="metric-icon icon-debts"><i data-lucide="hand-coins"></i></div>
+      <div class="metric-icon icon-debts"><img src="icons/debts.png" alt=""></div>
       <div class="label">Непогашенные долги</div>
       <div class="value" id="debtsMonthTotal">—</div>
       <div class="growth-indicator" id="debtsMonthCount"></div>
@@ -1322,7 +1325,7 @@
       <!-- SUBSCRIPTIONS -->
       <div class="panel">
         <h2 style="justify-content:space-between;">
-          <span>Подписки</span>
+          <span><img class="h2-icon" src="icons/subscriptions.png" alt="">Подписки</span>
           <span class="badge-info" id="subscriptionsTotalBadge">0 ₽/мес.</span>
         </h2>
         <div class="inline-add-row">
@@ -1350,7 +1353,7 @@
       <!-- RECURRING EXPENSES -->
       <div class="panel">
         <h2 style="justify-content:space-between;">
-          <span>Ежемесячные расходы</span>
+          <span><img class="h2-icon" src="icons/payments.png" alt="">Ежемесячные расходы</span>
           <span class="badge-info" id="recurringTotalBadge">0 ₽</span>
         </h2>
         <div style="overflow-x:auto;">
@@ -1425,27 +1428,27 @@
   <div id="debtsView" style="display:none;">
     <div class="summary-grid">
       <div class="summary-card debts">
-        <div class="metric-icon icon-debts"><i data-lucide="hand-coins"></i></div>
+        <div class="metric-icon icon-debts"><img src="icons/debts.png" alt=""></div>
         <div class="label">Непогашенные долги</div>
         <div class="value" id="debtsTabUnpaidTotal">—</div>
         <div class="growth-indicator" id="debtsTabUnpaidCount"></div>
       </div>
       <div class="summary-card income">
-        <div class="metric-icon icon-income"><i data-lucide="trending-up"></i></div>
+        <div class="metric-icon icon-income"><img src="icons/income.png" alt=""></div>
         <div class="label">Доход за месяц</div>
         <div class="value" id="debtsTabIncomeMonth">—</div>
         <div class="growth-indicator" id="growthDebtsTabIncome"></div>
         <div class="sparkline-box"><canvas id="sparkDebtsTabIncome"></canvas></div>
       </div>
       <div class="summary-card expense">
-        <div class="metric-icon icon-expense"><i data-lucide="trending-down"></i></div>
+        <div class="metric-icon icon-expense"><img src="icons/expense.png" alt=""></div>
         <div class="label">Расход за месяц</div>
         <div class="value" id="debtsTabExpenseMonth">—</div>
         <div class="growth-indicator" id="growthDebtsTabExpense"></div>
         <div class="sparkline-box"><canvas id="sparkDebtsTabExpense"></canvas></div>
       </div>
       <div class="summary-card balance">
-        <div class="metric-icon icon-primary"><i data-lucide="wallet"></i></div>
+        <div class="metric-icon icon-primary"><img src="icons/balance.png" alt=""></div>
         <div class="label">Остаток за месяц</div>
         <div class="value" id="debtsTabBalance">—</div>
         <div class="growth-indicator" id="growthDebtsTabBalance"></div>
@@ -1517,27 +1520,27 @@
   <div id="shoppingView" style="display:none;">
     <div class="summary-grid">
       <div class="summary-card expense">
-        <div class="metric-icon icon-expense"><i data-lucide="shopping-cart"></i></div>
+        <div class="metric-icon icon-expense"><img src="icons/expense.png" alt=""></div>
         <div class="label">Запланировано покупок</div>
         <div class="value" id="shoppingTabPlannedTotal">—</div>
         <div class="growth-indicator" id="shoppingTabPlannedCount"></div>
         <div class="sparkline-box"><canvas id="sparkShoppingPlanned"></canvas></div>
       </div>
       <div class="summary-card expense">
-        <div class="metric-icon icon-expense"><i data-lucide="trending-down"></i></div>
+        <div class="metric-icon icon-expense"><img src="icons/expense.png" alt=""></div>
         <div class="label">Расход за месяц</div>
         <div class="value" id="shoppingTabExpenseMonth">—</div>
         <div class="growth-indicator" id="growthShoppingTabExpense"></div>
         <div class="sparkline-box"><canvas id="sparkShoppingTabExpense"></canvas></div>
       </div>
       <div class="summary-card debts">
-        <div class="metric-icon icon-debts"><i data-lucide="hand-coins"></i></div>
+        <div class="metric-icon icon-debts"><img src="icons/debts.png" alt=""></div>
         <div class="label">Непогашенные долги</div>
         <div class="value" id="shoppingTabDebtsTotal">—</div>
         <div class="growth-indicator" id="shoppingTabDebtsCount"></div>
       </div>
       <div class="summary-card balance">
-        <div class="metric-icon icon-primary"><i data-lucide="wallet"></i></div>
+        <div class="metric-icon icon-primary"><img src="icons/balance.png" alt=""></div>
         <div class="label">Остаток за месяц</div>
         <div class="value" id="shoppingTabBalance">—</div>
         <div class="growth-indicator" id="growthShoppingTabBalance"></div>
@@ -1605,27 +1608,27 @@
   <div id="incomeView" style="display:none;">
     <div class="summary-grid">
       <div class="summary-card income">
-        <div class="metric-icon icon-income"><i data-lucide="trending-up"></i></div>
+        <div class="metric-icon icon-income"><img src="icons/income.png" alt=""></div>
         <div class="label">Ожидаемый доход</div>
         <div class="value" id="incomeExpectedTotal">—</div>
         <div class="growth-indicator" id="growthIncomeExpected"></div>
         <div class="sparkline-box"><canvas id="sparkIncomeExpected"></canvas></div>
       </div>
       <div class="summary-card expense">
-        <div class="metric-icon icon-expense"><i data-lucide="trending-down"></i></div>
+        <div class="metric-icon icon-expense"><img src="icons/expense.png" alt=""></div>
         <div class="label">Расход за месяц</div>
         <div class="value" id="incomeTabExpenseMonth">—</div>
         <div class="growth-indicator" id="growthIncomeTabExpense"></div>
         <div class="sparkline-box"><canvas id="sparkIncomeTabExpense"></canvas></div>
       </div>
       <div class="summary-card debts">
-        <div class="metric-icon icon-debts"><i data-lucide="hand-coins"></i></div>
+        <div class="metric-icon icon-debts"><img src="icons/debts.png" alt=""></div>
         <div class="label">Непогашенные долги</div>
         <div class="value" id="incomeTabDebtsTotal">—</div>
         <div class="growth-indicator" id="incomeTabDebtsCount"></div>
       </div>
       <div class="summary-card balance">
-        <div class="metric-icon icon-primary"><i data-lucide="wallet"></i></div>
+        <div class="metric-icon icon-primary"><img src="icons/balance.png" alt=""></div>
         <div class="label">Остаток за месяц</div>
         <div class="value" id="incomeTabBalance">—</div>
         <div class="growth-indicator" id="growthIncomeTabBalance"></div>
@@ -1703,12 +1706,12 @@
 
     <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:14px; margin-top:20px;">
       <div class="summary-card income">
-        <div class="metric-icon icon-income"><i data-lucide="trending-up"></i></div>
+        <div class="metric-icon icon-income"><img src="icons/income.png" alt=""></div>
         <div class="label">Текущий месяц</div>
         <div class="value" id="incomeCurrentMonthValue">—</div>
       </div>
       <div class="summary-card income">
-        <div class="metric-icon icon-income"><i data-lucide="trending-up"></i></div>
+        <div class="metric-icon icon-income"><img src="icons/income.png" alt=""></div>
         <div class="label" id="incomeReportMonthLabel">Отчётный месяц</div>
         <div class="value" id="incomeReportMonthValue">—</div>
         <div class="growth-indicator" id="incomeCompareGrowth"></div>
@@ -3213,7 +3216,7 @@ function renderDebts() {
   grid.innerHTML = people.length
     ? people.map(name => `
         <div class="summary-card debts clickable-card ${state.debtsPersonFilter === name ? 'active-filter' : ''}" onclick="toggleDebtsPersonFilter('${escapeAttr(name).replace(/'/g, "\\'")}')">
-          <div class="metric-icon icon-debts"><i data-lucide="hand-coins"></i></div>
+          <div class="metric-icon icon-debts"><img src="icons/debts.png" alt=""></div>
           <div class="label">${escapeHtml(name)}</div>
           <div class="value">${fmt.format(byPerson[name].total)}</div>
           <div class="growth-indicator">${byPerson[name].count} ${pluralDolg(byPerson[name].count)}</div>
