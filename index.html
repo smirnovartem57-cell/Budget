@@ -702,6 +702,18 @@
   input.shopping-date-input { width: auto; min-width: 150px; padding: 6px 8px; font-size: 16px; }
   .days-remaining { font-size: 11.5px; color: var(--text-secondary); margin-top: 3px; }
   .days-remaining.overdue { color: var(--expense-accent); font-weight: 600; }
+  .status-badge {
+    display: inline-block;
+    font-size: 11px; font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 999px;
+    margin-top: 4px;
+    text-transform: uppercase; letter-spacing: 0.02em;
+  }
+  .status-badge.planned { background: var(--info-bg); color: var(--btn-primary); }
+  .status-badge.soon { background: var(--warning-bg); color: var(--warning); }
+  .status-badge.overdue { background: var(--expense-bg); color: var(--expense-accent); }
+  .status-badge.bought { background: var(--income-bg); color: var(--income-accent); }
   input.inline-name-input { width: 100%; min-width: 140px; padding: 6px 8px; font-size: 16px; font-weight: 600; }
   /* Smaller on desktop; kept at 16px on mobile in the breakpoint below so
      iOS doesn't auto-zoom the page when these are focused. */
@@ -900,7 +912,6 @@
     input[type=date] { min-width: 0; max-width: 100%; }
     #txCommentHeader, td.tx-comment-cell.comment-cell { display: none; }
     #debtsCommentHeader, td.debts-comment-cell.comment-cell { display: none; }
-    #shoppingCommentHeader, td.shopping-comment-cell.comment-cell { display: none; }
     input.income-name-input, input.income-date-input { font-size: 16px; min-width: 88px; }
     input.income-amount-input { width: 80px; min-width: 80px; }
     input.debts-name-input, input.debts-date-input { font-size: 16px; min-width: 76px; }
@@ -1407,6 +1418,36 @@
   </div>
 
   <div id="shoppingView" style="display:none;">
+    <div class="summary-grid">
+      <div class="summary-card expense">
+        <div class="metric-icon icon-expense"><i data-lucide="shopping-cart"></i></div>
+        <div class="label">Запланировано покупок</div>
+        <div class="value" id="shoppingTabPlannedTotal">—</div>
+        <div class="growth-indicator" id="shoppingTabPlannedCount"></div>
+        <div class="sparkline-box"><canvas id="sparkShoppingPlanned"></canvas></div>
+      </div>
+      <div class="summary-card expense">
+        <div class="metric-icon icon-expense"><i data-lucide="trending-down"></i></div>
+        <div class="label">Расход за месяц</div>
+        <div class="value" id="shoppingTabExpenseMonth">—</div>
+        <div class="growth-indicator" id="growthShoppingTabExpense"></div>
+        <div class="sparkline-box"><canvas id="sparkShoppingTabExpense"></canvas></div>
+      </div>
+      <div class="summary-card debts">
+        <div class="metric-icon icon-debts"><i data-lucide="hand-coins"></i></div>
+        <div class="label">Непогашенные долги</div>
+        <div class="value" id="shoppingTabDebtsTotal">—</div>
+        <div class="growth-indicator" id="shoppingTabDebtsCount"></div>
+      </div>
+      <div class="summary-card balance">
+        <div class="metric-icon icon-primary"><i data-lucide="wallet"></i></div>
+        <div class="label">Остаток за месяц</div>
+        <div class="value" id="shoppingTabBalance">—</div>
+        <div class="growth-indicator" id="growthShoppingTabBalance"></div>
+        <div class="sparkline-box"><canvas id="sparkShoppingTabBalance"></canvas></div>
+      </div>
+    </div>
+
     <div class="main-grid">
       <!-- SHOPPING ITEM FORM -->
       <div class="panel">
@@ -1438,7 +1479,7 @@
             <span class="badge-info" id="shoppingTotalBadge">0 ₽</span>
           </h2>
           <div style="overflow-x:auto;">
-            <table>
+            <table class="responsive-card-table">
               <thead>
                 <tr>
                   <th class="sortable" id="shoppingSortName" data-key="name">Название</th>
@@ -3361,6 +3402,46 @@ function daysRemainingLabel(dateStr) {
   return { text: `просрочено на ${Math.abs(diffDays)} ${pluralDays(Math.abs(diffDays))}`, overdue: true };
 }
 
+function renderShoppingSummary() {
+  const currentMonthKey = todayStr().slice(0, 7);
+  const curMonths = activeMonths();
+  const prevMonths = previousPeriodMonths();
+
+  const plannedForMonth = (k) => state.shoppingList
+    .filter(item => item.planned_date && monthKey(item.planned_date) === k)
+    .reduce((s, item) => s + Number(item.amount), 0);
+  const plannedTotal = state.shoppingList.reduce((s, item) => s + Number(item.amount), 0);
+
+  const expensePeriod = sumForMonths(curMonths, 'expense');
+  const expensePrev = sumForMonths(prevMonths, 'expense');
+  const incomePeriod = sumForMonths(curMonths, 'income');
+  const incomePrev = sumForMonths(prevMonths, 'income');
+  const debtsTotal = computeUnpaidDebtsTotal();
+
+  document.getElementById('shoppingTabPlannedTotal').textContent = fmt.format(plannedTotal);
+  document.getElementById('shoppingTabPlannedCount').textContent = state.shoppingList.length ? `${state.shoppingList.length} поз.` : '';
+  document.getElementById('shoppingTabExpenseMonth').textContent = fmt.format(expensePeriod);
+  document.getElementById('shoppingTabDebtsTotal').textContent = fmt.format(debtsTotal);
+  document.getElementById('shoppingTabBalance').textContent = fmt.format(incomePeriod - expensePeriod);
+
+  const gExpense = formatGrowth(expensePeriod, expensePrev);
+  const gBalance = formatGrowth(incomePeriod - expensePeriod, incomePrev - expensePrev);
+  const g1 = document.getElementById('growthShoppingTabExpense'); g1.textContent = gExpense.text; g1.className = 'growth-indicator ' + gExpense.dir;
+  const g2 = document.getElementById('growthShoppingTabBalance'); g2.textContent = gBalance.text; g2.className = 'growth-indicator ' + gBalance.dir;
+
+  const unpaidCount = state.debts.filter(d => !d.is_paid).length;
+  document.getElementById('shoppingTabDebtsCount').textContent = unpaidCount ? `${unpaidCount} ${pluralDolg(unpaidCount)}` : '';
+
+  const sparkMonths = lastNMonthKeys(currentMonthKey, 6);
+  const plannedSeries = sparkMonths.map(plannedForMonth);
+  const expenseSeries = sparkMonths.map(k => sumForMonths([k], 'expense'));
+  const incomeSeries = sparkMonths.map(k => sumForMonths([k], 'income'));
+  const balanceSeries = incomeSeries.map((v, i) => v - expenseSeries[i]);
+  renderSparkline('sparkShoppingPlanned', plannedSeries, getComputedStyle(document.documentElement).getPropertyValue('--expense-accent').trim());
+  renderSparkline('sparkShoppingTabExpense', expenseSeries, getComputedStyle(document.documentElement).getPropertyValue('--expense-accent').trim());
+  renderSparkline('sparkShoppingTabBalance', balanceSeries, getComputedStyle(document.documentElement).getPropertyValue('--btn-primary').trim());
+}
+
 function renderShoppingList() {
   const { key, dir } = state.shoppingSort;
   const list = state.shoppingList.slice();
@@ -3385,26 +3466,64 @@ function renderShoppingList() {
   list.forEach(item => {
     const tr = document.createElement('tr');
     const remaining = item.planned_date ? daysRemainingLabel(item.planned_date) : '';
-    tr.innerHTML = `
-      <td><input type="text" class="inline-name-input shopping-name-input" value="${escapeAttr(item.name)}" onchange="updateShoppingField('${item.id}','name', this.value)"></td>
-      <td>
-        <input type="date" class="shopping-date-input" value="${item.planned_date || ''}" min="2020-01-01" max="2099-12-31" onchange="updateShoppingDate('${item.id}', this.value)">
-        ${remaining ? `<div class="days-remaining ${remaining.overdue ? 'overdue' : ''}">${remaining.text}</div>` : ''}
-      </td>
-      <td class="comment-cell shopping-comment-cell">${item.comment || ''}</td>
-      <td style="text-align:right;">
-        <input type="text" inputmode="numeric" class="inline-amount-input shopping-amount-input" value="${fmt.format(item.amount)}"
-          onfocus="this.value = String(${item.amount}).replace(/\s/g,'')"
-          onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${item.amount})"
-          onchange="updateShoppingField('${item.id}','amount', this.value.replace(/\s/g,'').replace(',', '.'))">
-      </td>
-      <td style="white-space:nowrap;">
-        <button class="btn-tiny icon-btn" onclick="markShoppingBought('${item.id}')" title="Отметить купленным">🛒</button>
-        <button class="del-btn" onclick="deleteShoppingItem('${item.id}')" title="Удалить" aria-label="Удалить"><i data-lucide="x"></i></button>
-      </td>
-    `;
+    if (shoppingEditingIds.has(item.id)) {
+      tr.innerHTML = `
+        <td><input type="text" class="inline-name-input shopping-name-input" value="${escapeAttr(item.name)}" onchange="updateShoppingField('${item.id}','name', this.value)"></td>
+        <td><input type="date" class="shopping-date-input" value="${item.planned_date || ''}" min="2020-01-01" max="2099-12-31" onchange="updateShoppingDate('${item.id}', this.value)"></td>
+        <td class="comment-cell shopping-comment-cell"><input type="text" class="inline-name-input" value="${escapeAttr(item.comment || '')}" onchange="updateShoppingField('${item.id}','comment', this.value)"></td>
+        <td style="text-align:right;">
+          <input type="text" inputmode="numeric" class="inline-amount-input shopping-amount-input" value="${fmt.format(item.amount)}"
+            onfocus="this.value = String(${item.amount}).replace(/\s/g,'')"
+            onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${item.amount})"
+            onchange="updateShoppingField('${item.id}','amount', this.value.replace(/\s/g,'').replace(',', '.'))">
+        </td>
+        <td style="white-space:nowrap;"><button class="btn-tiny icon-btn active" onclick="toggleShoppingEdit('${item.id}')" title="Готово" aria-label="Готово"><i data-lucide="check"></i></button></td>
+      `;
+    } else {
+      const status = purchaseStatus(item.planned_date);
+      tr.innerHTML = `
+        <td style="word-break: break-word;">
+          <div style="font-weight:700;">${escapeHtml(item.name)}</div>
+          ${status ? `<span class="status-badge ${status.cls}">${status.text}</span>` : ''}
+        </td>
+        <td>
+          <div>${item.planned_date || ''}</div>
+          ${remaining ? `<div class="days-remaining ${remaining.overdue ? 'overdue' : ''}">${remaining.text}</div>` : ''}
+        </td>
+        <td class="comment-cell shopping-comment-cell">${item.comment ? escapeHtml(item.comment) : ''}</td>
+        <td style="text-align:right;" class="amount-expense">${fmt.format(item.amount)}</td>
+        <td style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
+          <button class="btn-tiny icon-btn" onclick="markShoppingBought('${item.id}')" title="Отметить купленным" aria-label="Отметить купленным"><i data-lucide="check"></i></button>
+          <button class="btn-tiny icon-btn" onclick="toggleShoppingEdit('${item.id}')" title="Редактировать" aria-label="Редактировать"><i data-lucide="pencil"></i></button>
+          <button class="btn-tiny icon-btn" onclick="openShoppingActionMenu('${item.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
+        </td>
+      `;
+    }
     tbody.appendChild(tr);
   });
+}
+
+const shoppingEditingIds = new Set();
+function toggleShoppingEdit(id) {
+  if (shoppingEditingIds.has(id)) shoppingEditingIds.delete(id); else shoppingEditingIds.add(id);
+  renderShoppingList();
+  lucide.createIcons();
+}
+
+function openShoppingActionMenu(id) {
+  openActionMenu([
+    { label: 'Удалить', icon: 'trash-2', danger: true, onClick: () => deleteShoppingItem(id) },
+  ]);
+}
+
+function purchaseStatus(dateStr) {
+  if (!dateStr) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const target = new Date(dateStr + 'T00:00:00');
+  const diffDays = Math.round((target - today) / 86400000);
+  if (diffDays < 0) return { text: 'Просрочено', cls: 'overdue' };
+  if (diffDays <= 7) return { text: 'Скоро', cls: 'soon' };
+  return { text: 'Запланировано', cls: 'planned' };
 }
 
 /* ---------------- EXPECTED INCOME ---------------- */
@@ -4327,6 +4446,7 @@ function renderEverything() {
   renderCategoryPie('expenseChart', 'expenseChartBox', 'expense');
   renderDebts();
   renderRecurring();
+  renderShoppingSummary();
   renderShoppingList();
   renderIncomeSummary();
   renderExpectedIncome();
