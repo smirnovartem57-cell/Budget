@@ -994,8 +994,6 @@
       text-overflow: ellipsis;
     }
     input[type=date] { min-width: 0; max-width: 100%; }
-    #txCommentHeader, td.tx-comment-cell.comment-cell { display: none; }
-    #debtsCommentHeader, td.debts-comment-cell.comment-cell { display: none; }
     input.income-name-input, input.income-date-input { font-size: 16px; min-width: 88px; }
     input.income-amount-input { width: 80px; min-width: 80px; }
     input.debts-name-input, input.debts-date-input { font-size: 16px; min-width: 76px; }
@@ -1029,6 +1027,12 @@
       overflow: hidden;
       text-overflow: ellipsis;
       vertical-align: bottom;
+    }
+    .responsive-card-table .comment-cell {
+      display: block;
+      max-width: none;
+      overflow: visible;
+      text-overflow: clip;
     }
   }
 
@@ -1420,11 +1424,14 @@
       <div class="panel">
         <h2 style="justify-content:space-between;">
           <span><img class="h2-icon" src="icons/payments.png" alt="">Ежемесячные расходы</span>
-          <span class="badge-info" id="recurringTotalBadge">0 ₽</span>
+          <span style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+            <span class="badge-info" id="recurringTotalBadge">0 ₽</span>
+            <span class="badge-info" id="recurringRemainingBadge" style="background:var(--expense-bg); color:var(--expense-accent);" title="Осталось оплатить в этом месяце">0 ₽</span>
+          </span>
         </h2>
         <div class="recurring-due-soon" id="recurringDueSoon"></div>
         <div style="overflow-x:auto;">
-          <table>
+          <table class="responsive-card-table">
             <thead>
               <tr>
                 <th class="sortable" id="recurringSortName" data-key="name">Расход</th>
@@ -1484,7 +1491,7 @@
         </h2>
         <input type="text" id="txSearchInput" placeholder="Поиск по комментарию, категории или сумме…" style="margin-bottom:12px;">
         <div style="overflow-x:auto;">
-          <table>
+          <table class="responsive-card-table">
             <thead>
               <tr>
                 <th class="sortable" id="txSortDate" data-key="date">Дата</th>
@@ -4433,6 +4440,7 @@ function renderRecurring() {
   document.getElementById('recurringTotalBadge').textContent = fmt.format(total);
   document.getElementById('recurringTotalFooter').textContent = fmt.format(total);
   document.getElementById('recurringRemainingFooter').textContent = fmt.format(remaining);
+  document.getElementById('recurringRemainingBadge').textContent = 'Осталось ' + fmt.format(remaining);
 }
 
 // One row per still-active recurring expense "template" (category/subcategory + monthly amount),
