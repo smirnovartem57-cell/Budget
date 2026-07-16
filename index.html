@@ -235,6 +235,10 @@
   }
   .action-menu-overlay.visible .action-menu { transform: translateY(0) scale(1); }
   .action-menu-title { padding: 8px 10px 6px; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); }
+  /* Collapsible add-forms (A6 2026-07-15) */
+  .add-form-toggle { width: 100%; }
+  .add-form-toggle.is-open { background: var(--bg-secondary); color: var(--text-primary); box-shadow: none; }
+  .add-form-body { margin-top: 14px; }
   .action-menu-item {
     display: flex; align-items: center; gap: 10px;
     width: 100%;
@@ -1669,9 +1673,10 @@
     </div>
 
     <div class="main-grid">
-      <!-- DEBT FORM -->
-      <div class="panel">
-        <h2>Новый долг</h2>
+      <!-- DEBT FORM (свёрнута по умолчанию, список — первым экраном; A6 2026-07-15) -->
+      <div class="panel add-form-panel">
+        <button type="button" class="btn-primary add-form-toggle" data-open-label="+ Добавить долг" data-close-label="Свернуть" onclick="toggleAddForm('debtFormBody', this)">+ Добавить долг</button>
+        <div id="debtFormBody" class="add-form-body" style="display:none;">
         <div class="form-row">
           <label>Кто должен</label>
           <input type="text" id="debtorInput" placeholder="Например: Иван">
@@ -1689,6 +1694,7 @@
           <input type="text" id="debtCommentInput" placeholder="Например: занял на ремонт">
         </div>
         <button class="btn-primary" id="debtSubmitBtn">Добавить долг</button>
+        </div>
       </div>
 
       <div>
@@ -1762,9 +1768,10 @@
     </div>
 
     <div class="main-grid">
-      <!-- SHOPPING ITEM FORM -->
-      <div class="panel">
-        <h2>Новая покупка</h2>
+      <!-- SHOPPING ITEM FORM (свёрнута по умолчанию; A6 2026-07-15) -->
+      <div class="panel add-form-panel">
+        <button type="button" class="btn-primary add-form-toggle" data-open-label="+ Добавить покупку" data-close-label="Свернуть" onclick="toggleAddForm('shoppingFormBody', this)">+ Добавить покупку</button>
+        <div id="shoppingFormBody" class="add-form-body" style="display:none;">
         <div class="form-row">
           <label>Название</label>
           <input type="text" id="shoppingNameInput" placeholder="Например: Новый холодильник">
@@ -1782,6 +1789,7 @@
           <input type="text" id="shoppingCommentInput" placeholder="Например: на день рождения">
         </div>
         <button class="btn-primary" id="shoppingSubmitBtn">Добавить в список</button>
+        </div>
       </div>
 
       <div>
@@ -1850,9 +1858,10 @@
     </div>
 
     <div class="main-grid">
-      <!-- EXPECTED INCOME FORM -->
-      <div class="panel">
-        <h2>Ожидаемый доход</h2>
+      <!-- EXPECTED INCOME FORM (свёрнута по умолчанию; A6 2026-07-15) -->
+      <div class="panel add-form-panel">
+        <button type="button" class="btn-primary add-form-toggle" data-open-label="+ Добавить ожидаемый доход" data-close-label="Свернуть" onclick="toggleAddForm('incomeFormBody', this)">+ Добавить ожидаемый доход</button>
+        <div id="incomeFormBody" class="add-form-body" style="display:none;">
         <div class="form-row">
           <label>Категория</label>
           <select id="incomeCategorySelect"></select>
@@ -1880,6 +1889,7 @@
           </div>
         </div>
         <button class="btn-primary" id="incomeSubmitBtn">Добавить в список</button>
+        </div>
       </div>
 
       <div>
@@ -2204,6 +2214,17 @@ function openActionMenu(items, title) {
 document.getElementById('actionMenuOverlay').addEventListener('click', (e) => {
   if (e.target.id === 'actionMenuOverlay') e.currentTarget.classList.remove('visible');
 });
+
+// Collapsible add-forms (A6 2026-07-15): forms start collapsed so the list is the first
+// screen; toggling only changes display, so entered data is never lost.
+function toggleAddForm(bodyId, btn) {
+  const body = document.getElementById(bodyId);
+  const opening = getComputedStyle(body).display === 'none';
+  body.style.display = opening ? 'block' : 'none';
+  btn.textContent = opening ? btn.dataset.closeLabel : btn.dataset.openLabel;
+  btn.classList.toggle('is-open', opening);
+  if (opening) { const first = body.querySelector('input, select'); if (first) setTimeout(() => first.focus(), 60); }
+}
 
 // Thin top progress bar shown while data is loading/saving. Uses
 // pointer-events:none so it can never block clicks, unlike the earlier
