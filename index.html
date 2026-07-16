@@ -1704,8 +1704,9 @@
         <div class="panel">
           <h2 style="justify-content:space-between; flex-wrap:wrap; gap:6px;">
             <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <span>Все долги</span>
+              <span>Долги</span>
               <span class="cat-badge" id="debtsFilterBadge" style="display:none; cursor:pointer; background:var(--info-bg); color:var(--btn-primary);" onclick="toggleDebtsPersonFilter(state.debtsPersonFilter)" title="Сбросить фильтр"></span>
+              <span class="cat-badge" id="debtsShowPaidToggle" style="display:none; cursor:pointer; background:var(--bg-secondary); color:var(--text-secondary);" onclick="toggleDebtsShowPaid()"></span>
             </span>
             <span class="badge-info" id="debtsTotalBadge">0 ₽</span>
           </h2>
@@ -1934,7 +1935,7 @@
 
     <div class="panel">
       <h2 style="justify-content:space-between;">
-        <span>Динамика дохода <span class="badge-info" id="incomeDynamicsBadge">12 мес</span></span>
+        <span>Динамика дохода <span class="badge-info" id="incomeDynamicsBadge" role="button" tabindex="0" style="cursor:pointer;" title="Переключить 6 / 12 месяцев" onclick="toggleIncomeDynMonths()">12 мес</span></span>
         <span style="display:flex; gap:6px;">
           <button type="button" class="btn-tiny active" id="incomeDynByDayBtn">По дням</button>
           <button type="button" class="btn-tiny" id="incomeDynByMonthBtn">По месяцам</button>
@@ -2116,6 +2117,7 @@ let state = {
   shoppingSort: { key: null, dir: 'asc' },  // key: 'name' | 'amount' | 'date'
   debtsSort: { key: null, dir: 'asc' },     // key: 'date'
   debtsPersonFilter: null,
+  debtsShowPaid: false, // B3: погашенные долги скрыты по умолчанию (2026-07-15)
   expectedIncome: [],
   incomeSort: { key: null, dir: 'asc' },    // key: 'name' | 'amount' | 'date'
   shoppingNotes: [],
@@ -3610,12 +3612,24 @@ function renderDebts() {
   const { key, dir } = state.debtsSort;
   let list = state.debts.slice();
   if (state.debtsPersonFilter) list = list.filter(d => d.debtor_name === state.debtsPersonFilter);
+  // Paid debts are hidden by default (B3) — a toggle shows/hides them.
+  const paidCount = list.filter(d => d.is_paid).length;
+  if (!state.debtsShowPaid) list = list.filter(d => !d.is_paid);
+  const paidToggle = document.getElementById('debtsShowPaidToggle');
+  if (paidCount > 0) {
+    paidToggle.style.display = '';
+    paidToggle.textContent = state.debtsShowPaid ? 'Скрыть погашенные' : `Показать погашенные (${paidCount})`;
+  } else {
+    paidToggle.style.display = 'none';
+  }
   list.sort((a, b) => key === 'date'
     ? a.date.localeCompare(b.date) * (dir === 'asc' ? 1 : -1)
     : b.date.localeCompare(a.date));
   updateSortArrows(state.debtsSort, ['debtsSortDate']);
   tbody.innerHTML = '';
-  document.getElementById('debtsEmptyNote').style.display = list.length ? 'none' : 'block';
+  const emptyNote = document.getElementById('debtsEmptyNote');
+  emptyNote.style.display = list.length ? 'none' : 'block';
+  emptyNote.textContent = (!list.length && paidCount > 0 && !state.debtsShowPaid) ? 'Все долги погашены' : 'Пока нет долгов';
   list.forEach(d => {
     const tr = document.createElement('tr');
     const classes = [];
@@ -3675,6 +3689,12 @@ function openDebtActionMenu(id) {
 
 function toggleDebtsPersonFilter(name) {
   state.debtsPersonFilter = state.debtsPersonFilter === name ? null : name;
+  renderDebts();
+  lucide.createIcons();
+}
+
+function toggleDebtsShowPaid() {
+  state.debtsShowPaid = !state.debtsShowPaid;
   renderDebts();
   lucide.createIcons();
 }
@@ -4642,10 +4662,10 @@ function renderIncomeDynamics() {
     const monthName = monthLabel(state.selectedMonth);
     badgeText = monthName.charAt(0).toUpperCase() + monthName.slice(1);
   } else {
-    const months = last12Months();
-    labels = months.map(m => monthLabel(m).replace(/^(\S+)/, s => s.charAt(0).toUpperCase()+s.slice(1)));
+    const months = last12Months().slice(-state.dynamicsMonthsN);
+    labels = months.map(m => monthLabelShortApos(m));
     income = months.map(m => sumForMonths([m], 'income'));
-    badgeText = '12 мес';
+    badgeText = `${state.dynamicsMonthsN} мес`;
   }
   document.getElementById('incomeDynamicsBadge').textContent = badgeText;
 
@@ -4662,6 +4682,7 @@ function renderIncomeDynamics() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: { legend: { display: false } },
       scales: {
         y: {
@@ -5472,6 +5493,13 @@ function toggleDynamicsMonths() {
   if (state.dynamicsView !== 'month' || state.viewMode === 'year') return;
   state.dynamicsMonthsN = state.dynamicsMonthsN === 6 ? 12 : 6;
   renderDynamicsChart();
+}
+
+// Same 6/12 toggle for the income-dynamics chart on the Доходы tab. Shares the count. 2026-07-15
+function toggleIncomeDynMonths() {
+  if (state.incomeDynamicsView !== 'month') return;
+  state.dynamicsMonthsN = state.dynamicsMonthsN === 6 ? 12 : 6;
+  renderIncomeDynamics();
 }
 
 function renderCategoryRanking(boxId, kind) {
