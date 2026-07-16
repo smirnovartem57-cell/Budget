@@ -680,6 +680,8 @@
   .monthly-fact-month { font-size: 13px; font-weight: 600; color: var(--text-primary); width: 44px; flex-shrink: 0; }
   .monthly-fact-amount { font-size: 13.5px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; flex: 1; }
   .monthly-fact-row .growth-indicator { font-size: 11.5px; flex-shrink: 0; }
+  /* Neutral marker for the in-progress current month (no misleading %). 2026-07-15 */
+  .monthly-fact-partial { font-size: 11px; color: var(--text-muted); font-style: italic; flex-shrink: 0; }
 
   .period-compare-row { display: flex; gap: 16px; margin-bottom: 12px; }
   .period-compare-col { flex: 1; min-width: 0; }
@@ -688,6 +690,8 @@
   .period-compare-delta { font-size: 13px; font-weight: 600; padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 14px; background: var(--bg-secondary); }
   .period-compare-delta.up { background: var(--income-bg); color: var(--income-accent); }
   .period-compare-delta.down { background: var(--expense-bg); color: var(--expense-accent); }
+  /* Neutral (not green/red) plaque for the in-progress current month. 2026-07-15 */
+  .period-compare-delta.partial { background: var(--bg-secondary); color: var(--text-secondary); font-weight: 500; }
   .period-compare-factors-title { font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; }
   .period-compare-factor-row { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 13px; }
   .period-compare-factor-row:last-child { border-bottom: none; }
@@ -814,12 +818,25 @@
   input.shopping-amount-input { width: 90px; min-width: 90px; font-size: 13.5px; }
 
   .notepad-input-row { display: flex; gap: 8px; margin-bottom: 14px; }
-  .notepad-input-row input[type=text] { flex: 1; }
+  .notepad-input-row input[type=text] { flex: 1; min-width: 0; }
+  /* Icon "+" add button (44×44 tap-zone) so the text field keeps its width. 2026-07-15 */
+  .notepad-add-btn { width: 44px; min-width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .notepad-add-btn svg { width: 20px; height: 20px; }
 
   .inline-add-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
   .inline-add-row input[type=text] { flex: 1; min-width: 140px; }
   .inline-add-row input[type=number] { width: 100px; }
   .inline-add-row input[type=date] { width: 150px; }
+  /* Subscriptions add-form: 2 rows (Название+Сумма / Дата списания+Добавить) with a
+     visible date label — the bare date input had no label/placeholder before. 2026-07-15 */
+  .sub-add-form { display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; margin-bottom: 14px; align-items: end; }
+  .sub-add-form .sub-name { grid-column: 1; }
+  .sub-add-form .sub-amount { grid-column: 2; width: 120px; }
+  .sub-add-form .sub-date-field { grid-column: 1; display: flex; flex-direction: column; gap: 3px; }
+  .sub-add-form .sub-date-label { font-size: 11.5px; color: var(--text-secondary); font-weight: 600; }
+  .sub-add-form .sub-submit { grid-column: 2; width: auto; padding: 0 18px; }
+  /* Badge in normal case (не КАПС) — for the "1 799 ₽/мес · 5 активных" pill. 2026-07-15 */
+  .badge-normalcase { text-transform: none !important; letter-spacing: normal !important; }
   .mic-btn {
     border: 1px solid var(--border); background: var(--card-bg); color: var(--text-primary);
     border-radius: var(--radius-sm); width: 44px; height: 44px; font-size: 18px; cursor: pointer; flex-shrink: 0;
@@ -1028,29 +1045,46 @@
       text-overflow: ellipsis;
       vertical-align: bottom;
     }
+    /* Card comments show one line with ellipsis; tap toggles .rc-expanded to
+       reveal the full text (2026-07-15). */
     .responsive-card-table .comment-cell {
       display: block;
-      max-width: none;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .responsive-card-table .comment-cell.rc-expanded {
       overflow: visible;
+      white-space: normal;
       text-overflow: clip;
     }
   }
 
   /* ===================== BOTTOM NAVIGATION ===================== */
+  /* Frosted-glass bar (2026-07-15): what — translucent blurred nav so it reads
+     clearly over both light panels and charts; why — the old flat light-grey bar
+     blended into the light-grey page and content showed through. */
   .bottom-nav {
     display: none;
     position: fixed; left: 0; right: 0; bottom: 0;
     height: var(--bottom-nav-h);
     padding-bottom: env(safe-area-inset-bottom, 0px);
-    background: var(--card-bg);
-    border-top: 1px solid var(--border);
-    box-shadow: 0 -4px 16px rgba(16,24,40,0.06);
+    background: rgba(255, 255, 255, 0.82);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
+    border-top: 0.5px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 -4px 16px rgba(16,24,40,0.08);
     z-index: 1000;
     align-items: center; justify-content: space-around;
   }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .bottom-nav { background: #fff; }
+  }
   .bottom-nav-btn {
     display: flex; flex-direction: column; align-items: center; gap: 2px;
-    background: none; border: none; color: var(--text-muted);
+    background: none; border: none; color: #64748b;
     font-size: 10.5px; font-weight: 600; font-family: 'Inter', sans-serif;
     padding: 6px 4px; cursor: pointer;
   }
@@ -1060,13 +1094,16 @@
     width: 52px; height: 52px; border-radius: 50%;
     background: var(--btn-primary); color: #fff; border: none;
     display: flex; align-items: center; justify-content: center;
-    margin-top: -28px; box-shadow: 0 6px 16px rgba(79,125,243,0.4); cursor: pointer;
+    /* Docked FAB: pokes only ~10px above the bar so it doesn't cover neighbour
+       tabs' tap-zones (was -28px, which floated it over content). 2026-07-15 */
+    margin-top: -10px; box-shadow: 0 6px 16px rgba(79,125,243,0.4); cursor: pointer;
   }
   .bottom-nav-add svg { width: 24px; height: 24px; }
   @media (max-width: 767px) {
     .bottom-nav { display: flex; }
     .page-tabs { display: none; }
-    .container { padding-bottom: calc(60px + var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)); }
+    /* Clear the bar + FAB poke so the last block of every tab fully scrolls into view. */
+    .container { padding-bottom: calc(56px + var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)); }
     .toast { bottom: calc(24px + var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)); }
     .voice-status-bar { bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)); }
   }
@@ -1097,6 +1134,12 @@
   .quick-action-icon svg { width: 20px; height: 20px; }
   .quick-action-title { font-size: 13.5px; font-weight: 700; color: var(--text-primary); }
   .quick-action-sub { font-size: 11.5px; color: var(--text-secondary); margin-top: 1px; }
+  /* At ≤390px the icon + title are enough — drop the subtitle so both quick-action
+     cards stay short and equal height. 2026-07-15 */
+  @media (max-width: 390px) {
+    .quick-action-sub { display: none; }
+    .quick-action-card { min-height: 60px; align-items: center; }
+  }
 
   /* ===================== BOTTOM SHEET (mobile form container) ===================== */
   .bottom-sheet-overlay { }
@@ -1118,6 +1161,7 @@
       background: var(--card-bg);
       width: 100%;
       max-height: 88vh;
+      max-height: 88dvh; /* dvh accounts for the iOS URL bar; vh fallback above. 2026-07-15 */
       overflow-y: auto;
       border-radius: 20px 20px 0 0;
       padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -1137,19 +1181,66 @@
   }
 
   /* ===================== RESPONSIVE CARD TABLE (mobile) ===================== */
+  /* Compact mobile card (2026-07-15): what — a shared row layout that turns each
+     table row into a compact card (name/category left + amount right on line 1,
+     secondary info below, actions collapsed to a single "…" menu); why — the old
+     rule stacked every <td> as a full-width block, producing tall ~4-line cards
+     with an empty right half. Cells opt in via role classes rc-primary /
+     rc-secondary / rc-amount / rc-actions; untagged cells fall back to full width. */
   @media (max-width: 767px) {
     .responsive-card-table thead, .responsive-card-table tfoot { display: none; }
-    .responsive-card-table, .responsive-card-table tbody, .responsive-card-table tr, .responsive-card-table td { display: block; width: 100%; }
+    .responsive-card-table, .responsive-card-table tbody { display: block; width: 100%; }
     .responsive-card-table tr {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: baseline;
+      column-gap: 10px;
+      row-gap: 2px;
+      width: 100%;
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       box-shadow: var(--shadow-card);
-      padding: 14px;
-      margin-bottom: 12px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
     }
-    .responsive-card-table td { padding: 3px 0 !important; border: none !important; white-space: normal !important; text-align: left !important; }
-    .responsive-card-table td:last-child { display: flex; gap: 8px; margin-top: 8px; }
+    .responsive-card-table td {
+      display: block;
+      grid-column: 1 / -1;
+      padding: 0 !important;
+      border: none !important;
+      white-space: normal !important;
+      text-align: left !important;
+    }
+    .responsive-card-table td.rc-primary { grid-column: 1; grid-row: 1; font-weight: 700; align-self: center; word-break: break-word; }
+    .responsive-card-table td.rc-amount { grid-column: 2; grid-row: 1; text-align: right !important; white-space: nowrap !important; align-self: center; font-variant-numeric: tabular-nums; }
+    /* rc-secondary cells auto-flow down column 1 (rows 2, 3, …) so a row with both
+       a date and a comment stacks them without overlapping. */
+    .responsive-card-table td.rc-secondary { grid-column: 1; font-size: 12.5px; color: var(--text-secondary); margin-top: 1px; }
+    .responsive-card-table td.rc-actions { grid-column: 2; grid-row: 2; display: flex; gap: 8px; justify-content: flex-end; align-self: start; }
+    /* Collapse multi-button action cells to just the "…" menu button on mobile.
+       Single-button cells (delete-only) keep their button since it isn't hidden. */
+    .responsive-card-table td.rc-actions .btn-tiny:not(.rc-menu-btn) { display: none; }
+    .responsive-card-table td.rc-actions .rc-menu-btn { display: flex; }
+    /* "Скоро/Просрочено" status pill is redundant on mobile — the days-remaining
+       line below already says it; hide it inside the compact primary cell only. */
+    .responsive-card-table td.rc-primary .status-badge { display: none; }
+    /* Операции card: date + time side by side (not stacked) and a roomier amount
+       field now that the card has horizontal space. 2026-07-15 */
+    .responsive-card-table .tx-datetime-cell { flex-direction: row; gap: 6px; flex-wrap: wrap; }
+    .responsive-card-table input.tx-amount-input { width: 92px; min-width: 92px; }
+    /* Edit-mode rows keep a simple stacked layout so date/amount inputs get full width. */
+    .responsive-card-table tr.rc-edit-row { display: block; }
+    .responsive-card-table tr.rc-edit-row td { grid-column: auto; margin-bottom: 6px; }
+    .responsive-card-table tr.rc-edit-row td:last-child { margin-bottom: 0; }
+    /* iOS zooms on focus of any input under 16px. These inline-table inputs were only
+       bumped to 16px at ≤480px, leaving the 481–767px range at 13.5px — fix it across
+       the whole touch breakpoint. 2026-07-15 */
+    input.income-name-input, input.income-date-input,
+    input.debts-name-input, input.debts-date-input,
+    input.tx-date-input, input.tx-time-input, input.tx-amount-input,
+    input.recurring-date-input,
+    input.shopping-name-input, input.shopping-date-input, input.shopping-amount-input { font-size: 16px; }
   }
 </style>
 </head>
@@ -1257,9 +1348,9 @@
       <span class="badge-info" id="notepadDateLabel"></span>
     </h2>
     <div class="notepad-input-row">
-      <input type="text" id="notepadInput" placeholder="Например: молоко, хлеб...">
+      <input type="text" id="notepadInput" placeholder="Что купить?">
       <button type="button" class="mic-btn" id="notepadMicBtn" title="Добавить голосом" aria-label="Добавить голосом"><i data-lucide="mic"></i></button>
-      <button type="button" class="btn-primary" style="width:auto; padding:0 18px;" id="notepadAddBtn">Добавить</button>
+      <button type="button" class="btn-primary notepad-add-btn" id="notepadAddBtn" title="Добавить" aria-label="Добавить"><i data-lucide="plus"></i></button>
     </div>
     <ul class="notepad-list" id="notepadList"></ul>
     <div class="empty-note" id="notepadEmptyNote" style="display:none;">Список пуст — добавьте что-нибудь голосом или текстом</div>
@@ -1371,7 +1462,7 @@
       <!-- CHARTS -->
       <div class="panel">
         <h2 style="justify-content:space-between;">
-          <span>Динамика <span id="dynamicsPeriodLabel">по месяцам</span> <span class="badge-info" id="dynamicsBadge">12 мес</span></span>
+          <span>Динамика <span id="dynamicsPeriodLabel">по месяцам</span> <span class="badge-info" id="dynamicsBadge" role="button" tabindex="0" style="cursor:pointer;" title="Переключить 6 / 12 месяцев" onclick="toggleDynamicsMonths()">12 мес</span></span>
           <span style="display:flex; gap:6px;">
             <button type="button" class="btn-tiny" id="dynamicsByDayBtn">По дням</button>
             <button type="button" class="btn-tiny active" id="dynamicsByMonthBtn">По месяцам</button>
@@ -1396,13 +1487,16 @@
       <div class="panel">
         <h2 style="justify-content:space-between;">
           <span><img class="h2-icon" src="icons/subscriptions.png" alt="">Подписки</span>
-          <span class="badge-info" id="subscriptionsTotalBadge">0 ₽/мес.</span>
+          <span class="badge-info badge-normalcase" id="subscriptionsTotalBadge">0 ₽/мес.</span>
         </h2>
-        <div class="inline-add-row">
-          <input type="text" id="subscriptionNameInput" placeholder="Например: Яндекс Плюс">
-          <input type="number" id="subscriptionAmountInput" placeholder="Сумма" min="0" step="1">
-          <input type="date" id="subscriptionDateInput" min="2020-01-01" max="2099-12-31">
-          <button type="button" class="btn-primary" style="width:auto; padding:0 18px;" id="subscriptionSubmitBtn">Добавить</button>
+        <div class="sub-add-form">
+          <input type="text" class="sub-name" id="subscriptionNameInput" placeholder="Например: Яндекс Плюс">
+          <input type="number" class="sub-amount" id="subscriptionAmountInput" placeholder="Сумма" min="0" step="1">
+          <label class="sub-date-field">
+            <span class="sub-date-label">Дата списания</span>
+            <input type="date" id="subscriptionDateInput" min="2020-01-01" max="2099-12-31">
+          </label>
+          <button type="button" class="btn-primary sub-submit" id="subscriptionSubmitBtn">Добавить</button>
         </div>
         <div style="overflow-x:auto;">
           <table class="responsive-card-table">
@@ -1977,6 +2071,7 @@ let state = {
   subscriptions: [],
   subscriptionsSort: { key: null, dir: 'asc' }, // key: 'name' | 'amount' | 'date'
   categoryRankingExpanded: { income: false, expense: false },
+  dynamicsMonthsN: 6,  // 6 | 12 — default 6 so 12 bars don't crowd on phones (2026-07-15)
 };
 
 let currentUser = null;
@@ -2134,6 +2229,30 @@ function monthLabelInstrumental(key) {
   const [y, m] = key.split('-');
   const names = ['январём','февралём','мартом','апрелем','маем','июнем','июлем','августом','сентябрём','октябрём','ноябрём','декабрём'];
   return `${names[parseInt(m)-1]} ${y}`;
+}
+
+// "28 июля" — day + genitive month, for compact mobile secondary lines (2026-07-15).
+// Adds the year only when it isn't the current year, to keep the line short.
+function formatDateHuman(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  const names = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const base = `${parseInt(d)} ${names[parseInt(m)-1]}`;
+  return y === todayStr().slice(0, 4) ? base : `${base} ${y}`;
+}
+
+// True when the dashboard shows the current, still-in-progress calendar month — a %
+// change vs a *full* previous month is misleading (e.g. "−66%" on the 15th), so
+// callers suppress the growth badge / green plaque then. 2026-07-15
+function isCurrentMonthActive() {
+  return state.viewMode === 'month' && state.selectedMonth === todayStr().slice(0, 7);
+}
+
+// Short axis label "авг '25" for the dynamics chart (2026-07-15).
+function monthLabelShortApos(key) {
+  const [y, m] = key.split('-');
+  const names = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  return `${names[parseInt(m)-1]} '${y.slice(2)}`;
 }
 
 // months included in the currently active dashboard period
@@ -3387,8 +3506,10 @@ function renderDebts() {
   document.getElementById('debtsEmptyNote').style.display = list.length ? 'none' : 'block';
   list.forEach(d => {
     const tr = document.createElement('tr');
-    if (d.is_paid) tr.className = 'debt-row-paid';
+    const classes = [];
+    if (d.is_paid) classes.push('debt-row-paid');
     if (debtsEditingIds.has(d.id)) {
+      classes.push('rc-edit-row');
       tr.innerHTML = `
         <td><input type="date" class="shopping-date-input debts-date-input" value="${d.date}" min="2020-01-01" max="2099-12-31" onchange="updateDebtDate('${d.id}', this.value)"></td>
         <td><input type="text" class="inline-name-input debts-name-input" value="${escapeAttr(d.debtor_name)}" onchange="updateDebtField('${d.id}','debtor_name', this.value)"></td>
@@ -3403,22 +3524,23 @@ function renderDebts() {
       `;
     } else {
       tr.innerHTML = `
-        <td>${d.date}</td>
-        <td style="word-break: break-word;">
+        <td class="rc-secondary">${formatDateHuman(d.date)}</td>
+        <td class="rc-primary" style="word-break: break-word;">
           <div style="font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
             ${escapeHtml(d.debtor_name)}
             ${d.is_paid ? '<span class="cat-badge" style="background:var(--income-bg);color:var(--income-accent);">Оплачено</span>' : ''}
           </div>
         </td>
-        <td class="comment-cell debts-comment-cell">${d.comment ? escapeHtml(d.comment) : ''}</td>
-        <td style="text-align:right;" class="amount-income">${fmt.format(d.amount)}</td>
-        <td style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
+        <td class="comment-cell debts-comment-cell rc-secondary" onclick="this.classList.toggle('rc-expanded')">${d.comment ? escapeHtml(d.comment) : ''}</td>
+        <td class="rc-amount amount-income" style="text-align:right;">${fmt.format(d.amount)}</td>
+        <td class="rc-actions" style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
           <button class="btn-tiny icon-btn" onclick="toggleDebtPaid('${d.id}', ${d.is_paid ? 'false' : 'true'})" title="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}" aria-label="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}">${d.is_paid ? '<i data-lucide="undo-2"></i>' : '<i data-lucide="check"></i>'}</button>
           <button class="btn-tiny icon-btn" onclick="toggleDebtEdit('${d.id}')" title="Редактировать" aria-label="Редактировать"><i data-lucide="pencil"></i></button>
-          <button class="btn-tiny icon-btn" onclick="openDebtActionMenu('${d.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
+          <button class="btn-tiny icon-btn rc-menu-btn" onclick="openDebtActionMenu('${d.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
         </td>
       `;
     }
+    tr.className = classes.join(' ');
     tbody.appendChild(tr);
   });
 }
@@ -3431,7 +3553,10 @@ function toggleDebtEdit(id) {
 }
 
 function openDebtActionMenu(id) {
+  const d = state.debts.find(x => x.id === id);
   openActionMenu([
+    { label: d && d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным', icon: d && d.is_paid ? 'undo-2' : 'check', onClick: () => toggleDebtPaid(id, d ? !d.is_paid : true) },
+    { label: 'Изменить', icon: 'pencil', onClick: () => toggleDebtEdit(id) },
     { label: 'Удалить', icon: 'trash-2', danger: true, onClick: () => deleteDebt(id) },
   ]);
 }
@@ -3560,9 +3685,11 @@ function renderSubscriptions() {
   document.getElementById('subscriptionsEmptyNote').style.display = list.length ? 'none' : 'block';
   list.forEach(sub => {
     const tr = document.createElement('tr');
-    if (!sub.is_active) tr.className = 'debt-row-paid';
+    const classes = [];
+    if (!sub.is_active) classes.push('debt-row-paid');
     const remaining = sub.next_billing_date ? daysRemainingLabel(sub.next_billing_date) : '';
     if (subscriptionsEditingIds.has(sub.id)) {
+      classes.push('rc-edit-row');
       tr.innerHTML = `
         <td><input type="text" class="inline-name-input" value="${escapeAttr(sub.name)}" onchange="updateSubscriptionField('${sub.id}','name', this.value)"></td>
         <td><input type="date" class="shopping-date-input" value="${sub.next_billing_date || ''}" min="2020-01-01" max="2099-12-31" onchange="updateSubscriptionDate('${sub.id}', this.value)"></td>
@@ -3576,23 +3703,25 @@ function renderSubscriptions() {
       `;
     } else {
       const status = sub.is_active ? purchaseStatus(sub.next_billing_date) : null;
+      const dateStr = sub.next_billing_date ? formatDateHuman(sub.next_billing_date) : '—';
       tr.innerHTML = `
-        <td style="word-break: break-word;">
+        <td class="rc-primary" style="word-break: break-word;">
           <div style="font-weight:700;">${escapeHtml(sub.name)}</div>
           ${!sub.is_active ? '<span class="cat-badge" style="background:var(--bg-secondary);color:var(--text-secondary);">Неактивна</span>' : (status ? `<span class="status-badge ${status.cls}">${status.text}</span>` : '')}
         </td>
-        <td>
-          <div>${sub.next_billing_date || ''}</div>
+        <td class="rc-secondary">
+          <div>${dateStr}</div>
           ${sub.is_active && remaining ? `<div class="days-remaining ${remaining.overdue ? 'overdue' : ''}">${remaining.text}</div>` : ''}
         </td>
-        <td style="text-align:right;" class="amount-expense">${fmt.format(sub.amount)}</td>
-        <td style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
-          <button class="btn-tiny icon-btn" onclick="markSubscriptionPaid('${sub.id}')" title="Отметить оплаченным" aria-label="Отметить оплаченным"><i data-lucide="check"></i></button>
+        <td class="rc-amount amount-expense" style="text-align:right;">${fmt.format(sub.amount)}</td>
+        <td class="rc-actions" style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
+          <button class="btn-tiny icon-btn" onclick="markSubscriptionPaid('${sub.id}')" title="Отметить оплаченной" aria-label="Отметить оплаченной"><i data-lucide="check"></i></button>
           <button class="btn-tiny icon-btn" onclick="toggleSubscriptionEdit('${sub.id}')" title="Редактировать" aria-label="Редактировать"><i data-lucide="pencil"></i></button>
-          <button class="btn-tiny icon-btn" onclick="openSubscriptionActionMenu('${sub.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
+          <button class="btn-tiny icon-btn rc-menu-btn" onclick="openSubscriptionActionMenu('${sub.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
         </td>
       `;
     }
+    tr.className = classes.join(' ');
     tbody.appendChild(tr);
   });
 }
@@ -3608,6 +3737,8 @@ function openSubscriptionActionMenu(id) {
   const sub = state.subscriptions.find(s => s.id === id);
   if (!sub) return;
   openActionMenu([
+    { label: 'Отметить оплаченной', icon: 'check', onClick: () => markSubscriptionPaid(id) },
+    { label: 'Изменить', icon: 'pencil', onClick: () => toggleSubscriptionEdit(id) },
     {
       label: sub.is_active ? 'Деактивировать' : 'Активировать',
       icon: sub.is_active ? 'pause' : 'play',
@@ -3965,6 +4096,7 @@ function renderShoppingList() {
     const tr = document.createElement('tr');
     const remaining = item.planned_date ? daysRemainingLabel(item.planned_date) : '';
     if (shoppingEditingIds.has(item.id)) {
+      tr.className = 'rc-edit-row';
       tr.innerHTML = `
         <td><input type="text" class="inline-name-input shopping-name-input" value="${escapeAttr(item.name)}" onchange="updateShoppingField('${item.id}','name', this.value)"></td>
         <td><input type="date" class="shopping-date-input" value="${item.planned_date || ''}" min="2020-01-01" max="2099-12-31" onchange="updateShoppingDate('${item.id}', this.value)"></td>
@@ -3979,21 +4111,22 @@ function renderShoppingList() {
       `;
     } else {
       const status = purchaseStatus(item.planned_date);
+      const dateStr = item.planned_date ? formatDateHuman(item.planned_date) : '—';
       tr.innerHTML = `
-        <td style="word-break: break-word;">
+        <td class="rc-primary" style="word-break: break-word;">
           <div style="font-weight:700;">${escapeHtml(item.name)}</div>
           ${status ? `<span class="status-badge ${status.cls}">${status.text}</span>` : ''}
         </td>
-        <td>
-          <div>${item.planned_date || ''}</div>
+        <td class="rc-secondary">
+          <div>${dateStr}</div>
           ${remaining ? `<div class="days-remaining ${remaining.overdue ? 'overdue' : ''}">${remaining.text}</div>` : ''}
         </td>
-        <td class="comment-cell shopping-comment-cell">${item.comment ? escapeHtml(item.comment) : ''}</td>
-        <td style="text-align:right;" class="amount-expense">${fmt.format(item.amount)}</td>
-        <td style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
+        <td class="comment-cell shopping-comment-cell rc-secondary" onclick="this.classList.toggle('rc-expanded')">${item.comment ? escapeHtml(item.comment) : ''}</td>
+        <td class="rc-amount amount-expense" style="text-align:right;">${fmt.format(item.amount)}</td>
+        <td class="rc-actions" style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
           <button class="btn-tiny icon-btn" onclick="markShoppingBought('${item.id}')" title="Отметить купленным" aria-label="Отметить купленным"><i data-lucide="check"></i></button>
           <button class="btn-tiny icon-btn" onclick="toggleShoppingEdit('${item.id}')" title="Редактировать" aria-label="Редактировать"><i data-lucide="pencil"></i></button>
-          <button class="btn-tiny icon-btn" onclick="openShoppingActionMenu('${item.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
+          <button class="btn-tiny icon-btn rc-menu-btn" onclick="openShoppingActionMenu('${item.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
         </td>
       `;
     }
@@ -4010,6 +4143,8 @@ function toggleShoppingEdit(id) {
 
 function openShoppingActionMenu(id) {
   openActionMenu([
+    { label: 'Отметить купленным', icon: 'check', onClick: () => markShoppingBought(id) },
+    { label: 'Изменить', icon: 'pencil', onClick: () => toggleShoppingEdit(id) },
     { label: 'Удалить', icon: 'trash-2', danger: true, onClick: () => deleteShoppingItem(id) },
   ]);
 }
@@ -4219,6 +4354,7 @@ function renderExpectedIncome() {
     const tr = document.createElement('tr');
     const remaining = item.expected_date ? daysRemainingLabel(item.expected_date) : '';
     if (incomeEditingIds.has(item.id)) {
+      tr.className = 'rc-edit-row';
       tr.innerHTML = `
         <td>
           <input type="text" class="inline-name-input income-name-input" value="${escapeAttr(item.name)}" onchange="updateIncomeField('${item.id}','name', this.value)">
@@ -4236,22 +4372,22 @@ function renderExpectedIncome() {
       `;
     } else {
       tr.innerHTML = `
-        <td>
+        <td class="rc-primary">
           <div style="font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
             ${escapeHtml(item.name)}
             ${item.is_received ? '<span class="cat-badge" style="background:var(--income-bg);color:var(--income-accent);">Получено</span>' : ''}
           </div>
           <div class="days-remaining">${item.category ? escapeHtml(item.category) : ''}${item.is_recurring ? ' · Ежемесячно' : ''}</div>
         </td>
-        <td>
-          <div>${item.expected_date || ''}</div>
+        <td class="rc-secondary">
+          <div>${item.expected_date ? formatDateHuman(item.expected_date) : '—'}</div>
           ${remaining ? `<div class="days-remaining ${remaining.overdue ? 'overdue' : ''}">${remaining.text}</div>` : ''}
         </td>
-        <td style="text-align:right;" class="amount-income">${fmt.format(item.amount)}</td>
-        <td style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
+        <td class="rc-amount amount-income" style="text-align:right;">${fmt.format(item.amount)}</td>
+        <td class="rc-actions" style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
           <button class="btn-tiny icon-btn" onclick="markIncomeReceived('${item.id}')" title="Добавить в операции" aria-label="Добавить в операции"><i data-lucide="download"></i></button>
           <button class="btn-tiny icon-btn" onclick="toggleIncomeEdit('${item.id}')" title="Редактировать" aria-label="Редактировать"><i data-lucide="pencil"></i></button>
-          <button class="btn-tiny icon-btn" onclick="openIncomeActionMenu('${item.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
+          <button class="btn-tiny icon-btn rc-menu-btn" onclick="openIncomeActionMenu('${item.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
         </td>
       `;
     }
@@ -4270,6 +4406,8 @@ function openIncomeActionMenu(id) {
   const item = state.expectedIncome.find(i => i.id === id);
   if (!item) return;
   openActionMenu([
+    { label: 'Добавить в операции', icon: 'download', onClick: () => markIncomeReceived(id) },
+    { label: 'Изменить', icon: 'pencil', onClick: () => toggleIncomeEdit(id) },
     {
       label: item.is_received ? 'Снять отметку «получено»' : 'Отметить как полученное',
       icon: 'check',
@@ -4427,13 +4565,13 @@ function renderRecurring() {
     const isPaid = g.currentMonthDate && g.currentMonthDate <= today;
     if (!isPaid) remaining += g.amount;
     tr.innerHTML = `
-      <td><span class="cat-badge">${g.subcategory ? `${g.category} · ${g.subcategory}` : g.category}</span></td>
-      <td>
+      <td class="rc-primary"><span class="cat-badge">${g.subcategory ? `${g.category} · ${g.subcategory}` : g.category}</span></td>
+      <td class="rc-secondary">
         <input type="date" class="shopping-date-input recurring-date-input" value="${g.minDate}" min="2020-01-01" max="2099-12-31" onchange="updateRecurringGroupDate('${groupId}', this.value)">
         ${endFmt ? `<div class="days-remaining">до ${endFmt}</div>` : ''}
       </td>
-      <td style="text-align:right;" class="amount-expense ${isPaid ? 'amount-paid' : ''}" title="${isPaid ? 'Платёж за этот месяц уже прошёл' : ''}">${fmt.format(g.amount)}</td>
-      <td><button class="del-btn" onclick="deleteRecurringGroup('${groupId}')" title="Удалить" aria-label="Удалить"><i data-lucide="x"></i></button></td>
+      <td class="rc-amount amount-expense ${isPaid ? 'amount-paid' : ''}" style="text-align:right;" title="${isPaid ? 'Платёж за этот месяц уже прошёл' : ''}">${fmt.format(g.amount)}</td>
+      <td class="rc-actions"><button class="del-btn" onclick="deleteRecurringGroup('${groupId}')" title="Удалить" aria-label="Удалить"><i data-lucide="x"></i></button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -4908,22 +5046,22 @@ function renderTable() {
   visible.forEach(t => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>
+      <td class="rc-secondary">
         <div class="tx-datetime-cell">
           <input type="date" class="shopping-date-input tx-date-input" value="${t.date}" min="2020-01-01" max="2099-12-31" onchange="updateTxDate('${t.id}', this.value)">
           <input type="time" class="tx-time-input" value="${t.time ? t.time.slice(0,5) : ''}" onchange="updateTxTime('${t.id}', this.value)">
         </div>
       </td>
-      <td><span class="cat-badge">${txCategoryLabel(t)}</span></td>
-      <td class="comment-cell tx-comment-cell">${t.comment || ''}</td>
-      <td style="text-align:right;" class="${t.kind === 'income' ? 'amount-income' : 'amount-expense'}">
+      <td class="rc-primary"><span class="cat-badge">${txCategoryLabel(t)}</span></td>
+      <td class="comment-cell tx-comment-cell rc-secondary" onclick="this.classList.toggle('rc-expanded')">${t.comment || ''}</td>
+      <td class="rc-amount ${t.kind === 'income' ? 'amount-income' : 'amount-expense'}" style="text-align:right;">
         ${t.kind === 'income' ? '+' : '−'}
         <input type="text" inputmode="numeric" class="inline-amount-input tx-amount-input" value="${fmt.format(t.amount)}"
           onfocus="this.value = String(${t.amount}).replace(/\s/g,'')"
           onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${t.amount})"
           onchange="updateTxAmount('${t.id}', this.value.replace(/\s/g,'').replace(',', '.'))">
       </td>
-      <td><button class="del-btn" onclick="deleteTx('${t.id}')" title="Удалить" aria-label="Удалить"><i data-lucide="x"></i></button></td>
+      <td class="rc-actions"><button class="del-btn" onclick="deleteTx('${t.id}')" title="Удалить" aria-label="Удалить"><i data-lucide="x"></i></button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -4963,17 +5101,21 @@ function renderMonthlyFactList() {
     box.innerHTML = '<div class="empty-note">Нет расходов за последние 6 месяцев</div>';
     return;
   }
+  const currentKey = todayStr().slice(0, 7);
   box.innerHTML = months.map((m, i) => {
     const amount = sumForMonths([m], 'expense');
     const prevKey = i > 0 ? months[i - 1] : lastNMonthKeys(m, 2)[0];
     const prevAmount = sumForMonths([prevKey], 'expense');
-    const g = formatGrowth(amount, prevAmount, { invert: true });
     const monthShort = monthLabel(m).slice(0, 3).replace(/^(\S)/, s => s.toUpperCase());
+    // The in-progress current month can't be fairly compared to a full previous month.
+    const badge = m === currentKey
+      ? '<span class="monthly-fact-partial">месяц не завершён</span>'
+      : (() => { const g = formatGrowth(amount, prevAmount, { invert: true }); return `<span class="growth-indicator ${g.dir}">${g.text}</span>`; })();
     return `
       <div class="monthly-fact-row">
         <span class="monthly-fact-month">${monthShort}</span>
         <span class="monthly-fact-amount">${fmt.format(amount)}</span>
-        <span class="growth-indicator ${g.dir}">${g.text}</span>
+        ${badge}
       </div>`;
   }).join('');
 }
@@ -5004,6 +5146,7 @@ function renderPeriodComparison() {
 
   const delta = curExpense - prevExpense;
   const g = formatGrowth(curExpense, prevExpense, { invert: true });
+  const partial = isCurrentMonthActive();
 
   const curTx = state.transactions.filter(t => curMonths.includes(monthKey(t.date)) && t.kind === 'expense' && hasHappened(t));
   const prevTx = state.transactions.filter(t => prevMonths.includes(monthKey(t.date)) && t.kind === 'expense' && hasHappened(t));
@@ -5027,8 +5170,10 @@ function renderPeriodComparison() {
         <div class="period-compare-amount">${fmt.format(prevExpense)}</div>
       </div>
     </div>
-    <div class="period-compare-delta ${g.dir}">
-      Расходы ${delta >= 0 ? 'выросли' : 'снизились'} на ${fmt.format(Math.abs(delta))} — ${g.text}
+    <div class="period-compare-delta ${partial ? 'partial' : g.dir}">
+      ${partial
+        ? `${cap(curLabelRaw)} ещё не завершён — сравниваем неполный период с полным ${prevLabelInstrumental}`
+        : `Расходы ${delta >= 0 ? 'выросли' : 'снизились'} на ${fmt.format(Math.abs(delta))} — ${g.text}`}
     </div>`;
 
   if (catDeltas.length) {
@@ -5059,9 +5204,9 @@ function renderDynamicsChart() {
     document.getElementById('dynamicsBadge').textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
   } else {
     document.getElementById('dynamicsPeriodLabel').textContent = byYear ? 'по годам' : 'по месяцам';
-    labels = byYear ? allYears() : last12Months();
-    chartLabels = byYear ? labels : labels.map(m => monthLabel(m).replace(/^(\S+)/, s => s.charAt(0).toUpperCase()+s.slice(1)));
-    document.getElementById('dynamicsBadge').textContent = byYear ? `${labels.length} лет` : '12 мес';
+    labels = byYear ? allYears() : last12Months().slice(-state.dynamicsMonthsN);
+    chartLabels = byYear ? labels : labels.map(m => monthLabelShortApos(m));
+    document.getElementById('dynamicsBadge').textContent = byYear ? `${labels.length} лет` : `${state.dynamicsMonthsN} мес`;
     income = byYear
       ? labels.map(y => sumForMonths(fullMonthRange().filter(k => k.startsWith(y + '-')), 'income'))
       : labels.map(m => sumForMonths([m], 'income'));
@@ -5086,7 +5231,7 @@ function renderDynamicsChart() {
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter' }, boxWidth: 12 } } },
+      plugins: { legend: { position: 'top', align: 'start', labels: { font: { family: 'Inter' }, boxWidth: 12 } } },
       scales: {
         y: {
           ticks: { callback: v => fmt.format(v), maxTicksLimit: isNarrow ? 4 : undefined },
@@ -5099,6 +5244,13 @@ function renderDynamicsChart() {
       }
     }
   });
+}
+
+// Toggle the dynamics chart between the last 6 and 12 months (2026-07-15).
+function toggleDynamicsMonths() {
+  if (state.dynamicsView !== 'month' || state.viewMode === 'year') return;
+  state.dynamicsMonthsN = state.dynamicsMonthsN === 6 ? 12 : 6;
+  renderDynamicsChart();
 }
 
 function renderCategoryRanking(boxId, kind) {
