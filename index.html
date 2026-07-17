@@ -342,6 +342,25 @@
   .growth-indicator.up { color: var(--income-accent); }
   .growth-indicator.down { color: var(--expense-accent); }
   .growth-indicator.partial { color: var(--text-muted); font-weight: 500; font-style: italic; }
+  /* A3 (2026-07-17): фраза-прогноз в hero, компактный ряд метрик, лента «Предстоит» */
+  .hero-forecast { font-size: 12.5px; color: rgba(255,255,255,0.92); margin-top: 8px; line-height: 1.35; }
+  .mini-metrics { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; margin-bottom: 22px; }
+  .mini-metric { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-card); padding: 10px 8px; text-align: center; }
+  .mini-metric .mm-label { font-size: 11px; color: var(--text-secondary); font-weight: 600; }
+  .mini-metric .mm-value { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: clamp(12px, 3.4vw, 16px); margin-top: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mini-metric.mm-income .mm-value { color: var(--income-accent); }
+  .mini-metric.mm-expense .mm-value { color: var(--expense-accent); }
+  .upcoming-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .upcoming-row:last-child { border-bottom: none; }
+  .upcoming-ico { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .upcoming-ico svg { width: 16px; height: 16px; }
+  .upcoming-ico.out { background: var(--expense-bg); color: var(--expense-accent); }
+  .upcoming-ico.in { background: var(--income-bg); color: var(--income-accent); }
+  .upcoming-name { font-weight: 600; font-size: 13.5px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .upcoming-date { font-size: 11.5px; color: var(--text-secondary); }
+  .upcoming-amount { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 13.5px; }
+  .upcoming-amount.out { color: var(--expense-accent); }
+  .upcoming-amount.in { color: var(--income-accent); }
 
   .container {
     max-width: 1180px;
@@ -1327,6 +1346,7 @@
   </div>
 
   <div id="budgetView">
+  <!-- A3 (2026-07-17): hero-остаток + фраза-прогноз + компактный ряд из 3 метрик -->
   <div class="summary-grid">
     <div class="summary-card balance hero">
       <div class="hero-illustration"><i data-lucide="home"></i></div>
@@ -1337,28 +1357,20 @@
       <div class="label" id="labelBalancePeriod">Остаток за месяц</div>
       <div class="value" id="balanceMonth">—</div>
       <div class="growth-indicator" id="growthBalance"></div>
+      <div class="hero-forecast" id="heroForecast"></div>
       <div class="sparkline-box"><canvas id="sparkBalance"></canvas></div>
     </div>
-    <div class="summary-card income">
-      <div class="metric-icon icon-income"><img src="icons/income.png" alt=""></div>
-      <div class="label" id="labelIncomePeriod">Доход за месяц</div>
-      <div class="value" id="sumIncomeMonth">—</div>
-      <div class="growth-indicator" id="growthIncome"></div>
-      <div class="sparkline-box"><canvas id="sparkIncome"></canvas></div>
-    </div>
-    <div class="summary-card expense">
-      <div class="metric-icon icon-expense"><img src="icons/expense.png" alt=""></div>
-      <div class="label" id="labelExpensePeriod">Расход за месяц</div>
-      <div class="value" id="sumExpenseMonth">—</div>
-      <div class="growth-indicator" id="growthExpense"></div>
-      <div class="sparkline-box"><canvas id="sparkExpense"></canvas></div>
-    </div>
-    <div class="summary-card debts">
-      <div class="metric-icon icon-debts"><img src="icons/debts.png" alt=""></div>
-      <div class="label">Непогашенные долги</div>
-      <div class="value" id="debtsMonthTotal">—</div>
-      <div class="growth-indicator" id="debtsMonthCount"></div>
-    </div>
+  </div>
+  <div class="mini-metrics">
+    <div class="mini-metric mm-income"><div class="mm-label">Доход</div><div class="mm-value" id="sumIncomeMonth">—</div></div>
+    <div class="mini-metric mm-expense"><div class="mm-label">Расход</div><div class="mm-value" id="sumExpenseMonth">—</div></div>
+    <div class="mini-metric mm-debts"><div class="mm-label">Долги</div><div class="mm-value" id="debtsMonthTotal">—</div></div>
+  </div>
+
+  <!-- A3: единая лента предстоящих движений за месяц (подписки + ежемес. расходы + ожид. доходы) -->
+  <div class="panel" id="upcomingFeedPanel">
+    <h2>Предстоит в этом месяце</h2>
+    <div id="upcomingFeed"></div>
   </div>
 
   <div class="panel" id="recentTxPanel">
@@ -1591,11 +1603,6 @@
         </div>
       </div>
 
-      <!-- UPCOMING PAYMENTS TIMELINE -->
-      <div class="panel">
-        <h2>Ближайшие платежи</h2>
-        <div class="payments-timeline" id="paymentsTimeline"></div>
-      </div>
 
       <!-- RECURRING EXPENSES STRUCTURE -->
       <div class="panel">
@@ -5016,41 +5023,6 @@ function renderRecurringDueSoon() {
     : 'На ближайшие 7 дней платежей нет';
 }
 
-function renderPaymentsTimeline() {
-  const box = document.getElementById('paymentsTimeline');
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const horizon = new Date(today); horizon.setDate(horizon.getDate() + 10);
-  const todayS = todayStr();
-  const horizonS = horizon.toISOString().slice(0, 10);
-
-  const items = [];
-  state.transactions.forEach(t => {
-    if (!t.is_recurring || t.date < todayS || t.date > horizonS) return;
-    items.push({ date: t.date, amount: Number(t.amount), name: t.subcategory ? `${t.category} · ${t.subcategory}` : t.category });
-  });
-  state.subscriptions.forEach(s => {
-    if (!s.is_active || !s.next_billing_date || s.next_billing_date < todayS || s.next_billing_date > horizonS) return;
-    items.push({ date: s.next_billing_date, amount: Number(s.amount), name: s.name });
-  });
-  items.sort((a, b) => a.date.localeCompare(b.date));
-
-  if (!items.length) {
-    box.innerHTML = '<div class="empty-note">На ближайшие 7 дней платежей нет</div>';
-    return;
-  }
-  box.innerHTML = items.map(it => {
-    const d = new Date(it.date + 'T00:00:00');
-    const soon = (d - today) / 86400000 <= 2;
-    const dateShort = `${String(d.getDate()).padStart(2, '0')} ${monthLabel(it.date.slice(0, 7)).slice(0, 3)}`;
-    return `
-      <div class="payments-timeline-item ${soon ? 'due-soon' : ''}">
-        <div class="payments-timeline-date">${dateShort}</div>
-        <div class="payments-timeline-amount">${fmt.format(it.amount)}</div>
-        <div class="payments-timeline-name">${escapeHtml(it.name)}</div>
-      </div>`;
-  }).join('');
-}
-
 function renderRecurringBreakdown() {
   const box = document.getElementById('recurringBreakdown');
   const groups = getActiveRecurringGroups();
@@ -5346,27 +5318,95 @@ function renderSummary() {
   const incomePrev = sumForMonths(prevMonths, 'income');
   const expensePrev = sumForMonths(prevMonths, 'expense');
 
-  document.getElementById('sumIncomeMonth').textContent = fmt.format(incomePeriod);
-  document.getElementById('sumExpenseMonth').textContent = fmt.format(expensePeriod);
-  document.getElementById('balanceMonth').textContent = fmt.format(incomePeriod - expensePeriod);
-  document.getElementById('debtsMonthTotal').textContent = fmt.format(computeUnpaidDebtsTotal());
+  setKpi('sumIncomeMonth', fmt.format(incomePeriod));
+  setKpi('sumExpenseMonth', fmt.format(expensePeriod));
+  setKpi('balanceMonth', fmt.format(incomePeriod - expensePeriod));
+  setKpi('debtsMonthTotal', fmt.format(computeUnpaidDebtsTotal()));
   const unpaidDebtsCount = state.debts.filter(d => !d.is_paid).length;
-  document.getElementById('debtsMonthCount').textContent = unpaidDebtsCount ? `${unpaidDebtsCount} ${pluralDolg(unpaidDebtsCount)}` : '';
+  setKpi('debtsMonthCount', unpaidDebtsCount ? `${unpaidDebtsCount} ${pluralDolg(unpaidDebtsCount)}` : '');
 
-  const gIncome = formatGrowth(incomePeriod, incomePrev);
-  const gExpense = formatGrowth(expensePeriod, expensePrev, { invert: true });
+  // A3: шаблонная фраза-прогноз (считается кодом), только для текущего месяца.
+  const heroForecast = document.getElementById('heroForecast');
+  if (heroForecast) {
+    if (state.viewMode === 'month' && isCurrentMonthActive()) {
+      const obligatory = computeObligatoryRemaining();
+      const free = Math.max(0, (incomePeriod - expensePeriod) - obligatory);
+      heroForecast.textContent = obligatory > 0
+        ? `До конца месяца обязательных платежей на ${fmt.format(obligatory)}, свободно примерно ${fmt.format(free)}`
+        : 'Обязательных платежей до конца месяца больше нет';
+      heroForecast.style.display = '';
+    } else {
+      heroForecast.textContent = '';
+      heroForecast.style.display = 'none';
+    }
+  }
+
   const gBalance = formatGrowth(incomePeriod - expensePeriod, incomePrev - expensePrev);
-  setMonthGrowth('growthIncome', gIncome);
-  setMonthGrowth('growthExpense', gExpense);
   setMonthGrowth('growthBalance', gBalance);
 
+  // hero-остаток показывает баланс месяца; спарклайн — динамика баланса за 6 мес (A3)
   const sparkMonths = lastNMonthKeys(todayStr().slice(0, 7), 6);
   const incomeSeries = sparkMonths.map(k => sumForMonths([k], 'income'));
   const expenseSeries = sparkMonths.map(k => sumForMonths([k], 'expense'));
   const balanceSeries = incomeSeries.map((v, i) => v - expenseSeries[i]);
-  renderSparkline('sparkIncome', incomeSeries, getComputedStyle(document.documentElement).getPropertyValue('--income-accent').trim());
-  renderSparkline('sparkExpense', expenseSeries, getComputedStyle(document.documentElement).getPropertyValue('--expense-accent').trim());
   renderSparkline('sparkBalance', balanceSeries, 'rgba(255,255,255,0.9)');
+}
+
+// Obligatory outflows still due this month = active recurring expenses not yet paid this
+// month + active subscriptions billing later this month. Integer-kopeck math (A3). 2026-07-17
+function computeObligatoryRemaining() {
+  const today = todayStr();
+  const monthK = today.slice(0, 7);
+  let kop = 0;
+  const groups = {};
+  state.transactions.forEach(t => {
+    if (!t.is_recurring || !t.recurring_group_id) return;
+    if (!groups[t.recurring_group_id]) groups[t.recurring_group_id] = { amount: Number(t.amount), endDate: t.recurring_end_date, paidThisMonth: false };
+    if (t.date.slice(0, 7) === monthK && t.date <= today) groups[t.recurring_group_id].paidThisMonth = true;
+  });
+  Object.values(groups).forEach(g => {
+    if ((!g.endDate || g.endDate >= today) && !g.paidThisMonth) kop += toKopecks(g.amount);
+  });
+  state.subscriptions.forEach(s => {
+    if (s.is_active && s.next_billing_date && s.next_billing_date.slice(0, 7) === monthK && s.next_billing_date >= today) kop += toKopecks(s.amount);
+  });
+  return kop / 100;
+}
+
+// A3: единая лента предстоящих движений за текущий месяц — ежемесячные расходы + подписки
+// (списания) и ожидаемые доходы (поступления), отсортированы по дате; направление
+// различается иконкой, знаком и цветом (не только цветом).
+function renderUpcomingFeed() {
+  const box = document.getElementById('upcomingFeed');
+  if (!box) return;
+  const today = todayStr();
+  const monthK = today.slice(0, 7);
+  const items = [];
+  getActiveRecurringGroups().forEach(g => {
+    const due = `${monthK}-${g.minDate.slice(8, 10)}`;
+    if (due >= today) items.push({ date: due, name: g.subcategory ? `${g.category} · ${g.subcategory}` : g.category, amount: g.amount, dir: 'out' });
+  });
+  state.subscriptions.forEach(s => {
+    if (s.is_active && s.next_billing_date && s.next_billing_date.slice(0, 7) === monthK && s.next_billing_date >= today) {
+      items.push({ date: s.next_billing_date, name: s.name, amount: Number(s.amount), dir: 'out' });
+    }
+  });
+  state.expectedIncome.forEach(i => {
+    if (i.expected_date && i.expected_date.slice(0, 7) === monthK && i.expected_date >= today && !i.linked_transaction_id) {
+      items.push({ date: i.expected_date, name: i.name, amount: Number(i.amount), dir: 'in' });
+    }
+  });
+  items.sort((a, b) => a.date.localeCompare(b.date));
+  if (!items.length) { box.innerHTML = '<div class="empty-note">До конца месяца ничего не запланировано</div>'; return; }
+  box.innerHTML = items.map(it => `
+    <div class="upcoming-row">
+      <div class="upcoming-ico ${it.dir}"><i data-lucide="${it.dir === 'in' ? 'arrow-down-left' : 'arrow-up-right'}"></i></div>
+      <div style="min-width:0;">
+        <div class="upcoming-name">${escapeHtml(it.name)}</div>
+        <div class="upcoming-date">${formatDateHuman(it.date)}</div>
+      </div>
+      <div class="upcoming-amount ${it.dir}">${it.dir === 'in' ? '+' : '−'} ${fmt.format(it.amount)}</div>
+    </div>`).join('');
 }
 
 function lastNMonthKeys(endKey, n) {
@@ -5772,7 +5812,7 @@ function renderEverything() {
   renderSubscriptions();
   renderRecurring();
   renderRecurringDueSoon();
-  renderPaymentsTimeline();
+  renderUpcomingFeed();
   renderRecurringBreakdown();
   renderShoppingSummary();
   renderShoppingList();
