@@ -361,6 +361,18 @@
   .upcoming-amount { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 13.5px; }
   .upcoming-amount.out { color: var(--expense-accent); }
   .upcoming-amount.in { color: var(--income-accent); }
+  /* F8: расшифровка KPI */
+  .kpi-clickable { cursor: pointer; }
+  .kpi-break-period { font-size: 12.5px; color: var(--text-secondary); font-weight: 600; }
+  .kpi-break-total { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 26px; margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
+  .kpi-break-formula { font-size: 13px; color: var(--text-primary); background: var(--surface-2, #eef2f7); border-radius: 8px; padding: 8px 10px; margin: 10px 0; line-height: 1.4; }
+  .kpi-break-note { font-size: 12px; color: var(--text-secondary); margin-top: 8px; line-height: 1.4; }
+  .kpi-break-sub { font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .03em; margin: 14px 0 6px; }
+  .kpi-break-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .kpi-break-row:last-child { border-bottom: none; }
+  .kpi-break-name { color: var(--text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .kpi-break-val { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .kpi-break-updated { font-size: 11.5px; color: var(--text-muted, var(--text-secondary)); margin-top: 14px; }
 
   .container {
     max-width: 1180px;
@@ -1372,16 +1384,16 @@
         <button type="button" class="hero-eye-btn" id="amountsEyeBtn" title="Скрыть/показать суммы" aria-label="Скрыть/показать суммы"><i data-lucide="eye"></i></button>
       </div>
       <div class="label" id="labelBalancePeriod">Остаток за месяц</div>
-      <div class="value" id="balanceMonth">—</div>
+      <div class="value kpi-clickable" id="balanceMonth" data-kpi="balance" role="button" tabindex="0" title="Как это посчитано?">—</div>
       <div class="growth-indicator" id="growthBalance"></div>
       <div class="hero-forecast" id="heroForecast"></div>
       <div class="sparkline-box"><canvas id="sparkBalance"></canvas></div>
     </div>
   </div>
   <div class="mini-metrics">
-    <div class="mini-metric mm-income"><div class="mm-label">Доход</div><div class="mm-value" id="sumIncomeMonth">—</div></div>
-    <div class="mini-metric mm-expense"><div class="mm-label">Расход</div><div class="mm-value" id="sumExpenseMonth">—</div></div>
-    <div class="mini-metric mm-debts"><div class="mm-label">Долги</div><div class="mm-value" id="debtsMonthTotal">—</div></div>
+    <div class="mini-metric mm-income kpi-clickable" data-kpi="income" role="button" tabindex="0" title="Как это посчитано?"><div class="mm-label">Доход</div><div class="mm-value" id="sumIncomeMonth">—</div></div>
+    <div class="mini-metric mm-expense kpi-clickable" data-kpi="expense" role="button" tabindex="0" title="Как это посчитано?"><div class="mm-label">Расход</div><div class="mm-value" id="sumExpenseMonth">—</div></div>
+    <div class="mini-metric mm-debts kpi-clickable" data-kpi="debts" role="button" tabindex="0" title="Как это посчитано?"><div class="mm-label">Долги</div><div class="mm-value" id="debtsMonthTotal">—</div></div>
   </div>
 
   <!-- A3: единая лента предстоящих движений за месяц (подписки + ежемес. расходы + ожид. доходы) -->
@@ -2052,6 +2064,18 @@
     <div class="confirm-dialog-actions" style="margin-top:16px;">
       <button type="button" class="btn-ghost" id="amountSheetCancelBtn">Отмена</button>
       <button type="button" class="btn-primary" id="amountSheetConfirmBtn">Подтвердить</button>
+    </div>
+  </div>
+</div>
+
+<!-- F8 (2026-07-17): расшифровка KPI по тапу — единый компонент -->
+<div class="bottom-sheet-overlay" id="kpiSheetOverlay">
+  <div class="bottom-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <button type="button" class="bottom-sheet-close" id="kpiSheetCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
+    <div class="panel">
+      <h2 id="kpiSheetTitle">Расшифровка</h2>
+      <div id="kpiSheetBody"></div>
     </div>
   </div>
 </div>
@@ -2805,6 +2829,7 @@ async function loadAll() {
     if (!state.selectedYear) {
       state.selectedYear = String(new Date().getFullYear());
     }
+    state.lastLoadedAt = Date.now(); // F8: время последнего обновления данных
     loadAllRetryCount = 0;
   } catch (err) {
     // A network-level failure (no internet, DNS/firewall blocking the server, etc.)
@@ -5530,6 +5555,101 @@ function renderUpcomingFeed() {
       <div class="upcoming-amount ${it.dir}">${it.dir === 'in' ? '+' : '−'} ${fmt.format(it.amount)}</div>
     </div>`).join('');
 }
+
+/* ---------------- F8 (2026-07-17): расшифровка KPI по тапу ---------------- */
+function periodLabelText() {
+  return state.viewMode === 'year' ? `${state.selectedYear} год` : monthLabel(state.selectedMonth);
+}
+function updatedAtLabel() {
+  if (!state.lastLoadedAt) return '';
+  const d = new Date(state.lastLoadedAt);
+  return `Обновлено ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+function topByAmount(entries, n = 3) {
+  return Object.entries(entries).sort((a, b) => b[1] - a[1]).slice(0, n).map(([label, amount]) => ({ label, value: fmt.format(amount) }));
+}
+function topCategoriesForKind(kind, n = 3) {
+  const set = new Set(activeMonths());
+  const acc = {};
+  state.transactions.forEach(t => {
+    if (t.kind === kind && set.has(monthKey(t.date)) && hasHappened(t)) {
+      const key = t.subcategory ? `${t.category} · ${t.subcategory}` : t.category;
+      acc[key] = (acc[key] || 0) + Number(t.amount);
+    }
+  });
+  return topByAmount(acc, n);
+}
+
+// Единый компонент листа-расшифровки. Данные считаются кодом (детерминированно).
+function openKpiBreakdown({ title, period, total, formula, note, itemsLabel, items }) {
+  document.getElementById('kpiSheetTitle').textContent = title;
+  const listHtml = items
+    ? (items.length
+        ? `<div class="kpi-break-sub">${escapeHtml(itemsLabel || 'Крупнейшие статьи')}</div>` +
+          items.map(it => `<div class="kpi-break-row"><span class="kpi-break-name">${escapeHtml(it.label)}</span><span class="kpi-break-val">${it.value}</span></div>`).join('')
+        : `<div class="kpi-break-sub">${escapeHtml(itemsLabel || 'Крупнейшие статьи')}</div><div class="empty-note">Нет данных за период</div>`)
+    : '';
+  document.getElementById('kpiSheetBody').innerHTML = `
+    ${period ? `<div class="kpi-break-period">${escapeHtml(period)}</div>` : ''}
+    ${total != null ? `<div class="kpi-break-total">${total}</div>` : ''}
+    ${formula ? `<div class="kpi-break-formula">${escapeHtml(formula)}</div>` : ''}
+    ${note ? `<div class="kpi-break-note">${escapeHtml(note)}</div>` : ''}
+    ${listHtml}
+    ${updatedAtLabel() ? `<div class="kpi-break-updated">${escapeHtml(updatedAtLabel())}</div>` : ''}`;
+  document.getElementById('kpiSheetOverlay').classList.add('visible');
+  lucide.createIcons();
+}
+function closeKpiSheet() { document.getElementById('kpiSheetOverlay').classList.remove('visible'); }
+
+// Строит расшифровку по типу KPI (income | expense | balance | debts).
+function openKpiBreakdownFor(kind) {
+  const period = periodLabelText();
+  const set = new Set(activeMonths());
+  const income = sumForMonths(activeMonths(), 'income');
+  const expense = sumForMonths(activeMonths(), 'expense');
+  if (kind === 'income') {
+    openKpiBreakdown({
+      title: 'Доход за период', period, total: fmt.format(income),
+      formula: 'Сумма всех операций типа «Доход» за период.',
+      note: 'Учитываются только уже наступившие даты — будущие операции не входят.',
+      itemsLabel: 'Крупнейшие источники', items: topCategoriesForKind('income'),
+    });
+  } else if (kind === 'expense') {
+    openKpiBreakdown({
+      title: 'Расход за период', period, total: fmt.format(expense),
+      formula: 'Сумма всех операций типа «Расход» за период.',
+      note: 'Учитываются только уже наступившие даты — будущие операции не входят.',
+      itemsLabel: 'Крупнейшие статьи', items: topCategoriesForKind('expense'),
+    });
+  } else if (kind === 'balance') {
+    openKpiBreakdown({
+      title: 'Остаток за период', period, total: fmt.format(income - expense),
+      formula: `Доход − Расход = ${fmt.format(income)} − ${fmt.format(expense)}.`,
+      note: 'Разница между доходами и расходами за выбранный период (без учёта долгов).',
+    });
+  } else if (kind === 'debts') {
+    const byName = {};
+    state.debts.filter(d => !d.is_paid).forEach(d => { byName[d.debtor_name] = (byName[d.debtor_name] || 0) + debtRemaining(d); });
+    const count = state.debts.filter(d => !d.is_paid).length;
+    openKpiBreakdown({
+      title: 'Непогашенные долги', period: `На сегодня · ${count} ${pluralDolg(count)}`,
+      total: fmt.format(computeUnpaidDebtsTotal()),
+      formula: 'Сумма остатков по всем не погашенным полностью долгам.',
+      note: 'Частичные погашения уже вычтены; полностью погашенные долги не входят.',
+      itemsLabel: 'По людям', items: topByAmount(byName),
+    });
+  }
+}
+
+document.getElementById('kpiSheetCloseBtn').addEventListener('click', closeKpiSheet);
+document.getElementById('kpiSheetOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'kpiSheetOverlay') closeKpiSheet();
+});
+// Делегирование: тап по KPI с data-kpi открывает расшифровку.
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-kpi]');
+  if (el) openKpiBreakdownFor(el.dataset.kpi);
+});
 
 function lastNMonthKeys(endKey, n) {
   const [y, m] = endKey.split('-').map(Number);
