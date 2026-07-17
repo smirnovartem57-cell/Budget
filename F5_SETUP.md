@@ -5,10 +5,10 @@
 Все шаги ниже выполняются в панели Supabase — приватный VAPID-ключ в репозиторий не
 коммитится.
 
-## 1. Таблица подписок
+## 1. Таблица подписок — ✅ ГОТОВО
 
-Выполните SQL из `supabase/migrations/20260717_push_subscriptions.sql`
-(SQL Editor → New query → вставить → Run). Создаёт таблицу `push_subscriptions` с RLS.
+Таблица `push_subscriptions` (с RLS) уже создана в проекте. SQL сохранён в
+`supabase/migrations/20260717_push_subscriptions.sql` для истории.
 
 ## 2. Секреты Edge Function (VAPID)
 
@@ -24,13 +24,13 @@ Project Settings → Edge Functions → Secrets → добавьте:
 со значением секрета. `SUPABASE_URL` и `SUPABASE_SERVICE_ROLE_KEY` функции доступны
 автоматически — их добавлять не нужно.
 
-## 3. Деплой Edge Function
+## 3. Деплой Edge Function — ✅ ГОТОВО
 
-Функция лежит в `supabase/functions/send-payment-reminders/index.ts`.
-
-- Через Supabase CLI: `supabase functions deploy send-payment-reminders --no-verify-jwt`
-  (без JWT, т.к. вызывается по расписанию сервером).
-- Или скажите мне — задеплою через MCP-инструмент Supabase.
+Функция `send-payment-reminders` задеплоена (status ACTIVE, version 1, **verify_jwt: true**).
+Код — в `supabase/functions/send-payment-reminders/index.ts`. Т.к. включена проверка JWT,
+вызывающий (cron ниже) обязан передавать `Authorization: Bearer <SERVICE_ROLE_KEY>` —
+это уже учтено в примере cron. Повторный деплой при изменениях:
+`supabase functions deploy send-payment-reminders`.
 
 ## 4. Расписание (cron)
 
