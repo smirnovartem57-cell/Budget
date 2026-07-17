@@ -538,6 +538,16 @@
   }
   .quick-cat-btn:hover { border-color: var(--expense-accent); color: var(--expense-accent); }
   .quick-cat-btn.active { background: var(--expense-accent); border-color: var(--expense-accent); color: #fff; }
+  /* F2 (2026-07-17): быстрый/полный режим bottom-sheet «Новая операция» */
+  .sheet-mode-toggle { display: inline-flex; background: var(--surface-2, #eef2f7); border-radius: 10px; padding: 3px; gap: 3px; margin: 6px 0 14px; }
+  .sheet-mode-toggle button { border: none; background: transparent; padding: 7px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text-secondary); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .sheet-mode-toggle button.active { background: var(--card-bg, #fff); color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .sheet-amount-row { display: flex; gap: 8px; align-items: stretch; }
+  .sheet-amount-row .sheet-amount-input { flex: 1; min-width: 0; }
+  #txSheetPanel.mode-quick .sheet-full-only { display: none; }
+  #txSheetPanel.mode-full .sheet-quick-only { display: none; }
+  #txSheetPanel.mode-quick .sheet-amount-input { font-size: 30px; font-weight: 800; text-align: center; padding: 12px; height: auto; font-variant-numeric: tabular-nums; }
+  .quick-cat-hint { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
   .cat-suggestion {
     margin-top: 8px;
     padding: 8px 10px;
@@ -1430,7 +1440,7 @@
     <div class="bottom-sheet">
     <div class="bottom-sheet-handle"></div>
     <button type="button" class="bottom-sheet-close" id="txSheetCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
-    <div class="panel">
+    <div class="panel mode-quick" id="txSheetPanel">
       <h2 style="justify-content:space-between;">
         <span>Новая операция</span>
         <label class="ai-toggle-label" title="Подсказывать категорию по правилам, истории и словарю">
@@ -1442,65 +1452,75 @@
         <button type="button" id="btnKindExpense">Расход</button>
       </div>
 
-      <div style="height:4px;"></div>
-
-      <div class="form-row">
-        <label>Категория</label>
-        <div class="quick-cat-row" id="quickCatRow" style="display:none;">
-          <button type="button" class="quick-cat-btn" data-cat="Кредит">Кредит</button>
-          <button type="button" class="quick-cat-btn" data-cat="Обязательный">Обязательный</button>
-          <button type="button" class="quick-cat-btn" data-cat="Покупки">Покупки</button>
-          <button type="button" class="quick-cat-btn" data-cat="Продукты">Продукты</button>
-        </div>
-        <select id="categorySelect"></select>
-        <div class="new-cat-inline" id="newCatInline">
-          <input type="text" id="newCatName" placeholder="Название категории">
-          <button type="button" class="btn-secondary" id="newCatSave">+</button>
-        </div>
-        <div class="name-row" id="nameRow">
-          <label style="margin-top:10px;">Название</label>
-          <select id="nameSelect"></select>
-          <div class="new-cat-inline" id="newNameInline">
-            <input type="text" id="newNameInput" placeholder="Например: Ипотека">
-            <button type="button" class="btn-secondary" id="newNameSave">+</button>
-          </div>
-        </div>
-        <div class="cat-suggestion" id="catSuggestion" style="display:none;">
-          <span id="catSuggestionText"></span>
-          <button type="button" class="btn-tiny" id="catSuggestionAcceptBtn">Подтвердить</button>
-          <button type="button" class="btn-tiny" id="catSuggestionDismissBtn">Не сейчас</button>
-        </div>
+      <!-- F2 (2026-07-17): быстрый/полный режим добавления -->
+      <div class="sheet-mode-toggle" id="sheetModeToggle">
+        <button type="button" id="sheetModeQuickBtn" class="active">Быстро</button>
+        <button type="button" id="sheetModeFullBtn">Все поля</button>
       </div>
 
       <div class="form-row">
         <label>Сумма, ₽</label>
-        <input type="number" id="amountInput" placeholder="0" min="0" step="1">
-      </div>
-
-      <div class="form-row">
-        <label>Дата и время</label>
-        <div class="datetime-row">
-          <input type="date" id="dateInput" min="2020-01-01" max="2099-12-31">
-          <input type="time" id="timeInput">
+        <div class="sheet-amount-row">
+          <input type="number" id="amountInput" class="sheet-amount-input" placeholder="0" min="0" step="1" inputmode="decimal">
+          <button type="button" class="mic-btn" id="txAmountMicBtn" title="Голосом" aria-label="Добавить голосом"><i data-lucide="mic"></i></button>
         </div>
       </div>
 
-      <div class="form-row" id="recurringRow" style="display:none;">
-        <label class="recurring-check-label">
-          <input type="checkbox" id="recurringCheckbox">
-          Ежемесячный расход
-        </label>
-        <div id="recurringEndDateRow" style="display:none;margin-top:8px;">
-          <label>Дата окончания</label>
-          <input type="date" id="recurringEndDateInput" min="2020-01-01" max="2099-12-31">
-        </div>
+      <!-- F2: частые категории по частоте использования — быстрый режим -->
+      <div class="form-row sheet-quick-only" id="frequentCatBlock">
+        <label>Частые категории</label>
+        <div class="quick-cat-row" id="quickCatRow"></div>
+        <div class="quick-cat-hint" id="quickCatHint">Коснитесь категории — операция добавится одним нажатием</div>
       </div>
 
-      <div class="form-row">
-        <label>Комментарий (необязательно)</label>
-        <div class="notepad-input-row" style="margin-bottom:0;">
-          <input type="text" id="commentInput" placeholder="Например: аванс за проект">
-          <button type="button" class="mic-btn" id="txMicBtn" title="Добавить голосом" aria-label="Добавить голосом"><i data-lucide="mic"></i></button>
+      <div class="sheet-full-only" id="sheetFullFields">
+        <div class="form-row">
+          <label>Категория</label>
+          <select id="categorySelect"></select>
+          <div class="new-cat-inline" id="newCatInline">
+            <input type="text" id="newCatName" placeholder="Название категории">
+            <button type="button" class="btn-secondary" id="newCatSave">+</button>
+          </div>
+          <div class="name-row" id="nameRow">
+            <label style="margin-top:10px;">Название</label>
+            <select id="nameSelect"></select>
+            <div class="new-cat-inline" id="newNameInline">
+              <input type="text" id="newNameInput" placeholder="Например: Ипотека">
+              <button type="button" class="btn-secondary" id="newNameSave">+</button>
+            </div>
+          </div>
+          <div class="cat-suggestion" id="catSuggestion" style="display:none;">
+            <span id="catSuggestionText"></span>
+            <button type="button" class="btn-tiny" id="catSuggestionAcceptBtn">Подтвердить</button>
+            <button type="button" class="btn-tiny" id="catSuggestionDismissBtn">Не сейчас</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label>Дата и время</label>
+          <div class="datetime-row">
+            <input type="date" id="dateInput" min="2020-01-01" max="2099-12-31">
+            <input type="time" id="timeInput">
+          </div>
+        </div>
+
+        <div class="form-row" id="recurringRow" style="display:none;">
+          <label class="recurring-check-label">
+            <input type="checkbox" id="recurringCheckbox">
+            Ежемесячный расход
+          </label>
+          <div id="recurringEndDateRow" style="display:none;margin-top:8px;">
+            <label>Дата окончания</label>
+            <input type="date" id="recurringEndDateInput" min="2020-01-01" max="2099-12-31">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label>Комментарий (необязательно)</label>
+          <div class="notepad-input-row" style="margin-bottom:0;">
+            <input type="text" id="commentInput" placeholder="Например: аванс за проект">
+            <button type="button" class="mic-btn" id="txMicBtn" title="Добавить голосом" aria-label="Добавить голосом"><i data-lucide="mic"></i></button>
+          </div>
         </div>
       </div>
 
@@ -2765,6 +2785,8 @@ document.getElementById('navShoppingBtn').addEventListener('click', () => switch
 document.getElementById('navIncomeBtn').addEventListener('click', () => switchPageTab('income'));
 function openTxSheet() {
   switchPageTab('budget');
+  setSheetMode('quick');
+  renderFrequentCats();
   document.getElementById('txSheetOverlay').classList.add('visible');
   setTimeout(() => document.getElementById('amountInput').focus(), 300);
 }
@@ -2840,7 +2862,7 @@ function setKind(kind) {
   document.getElementById('btnKindExpense').classList.toggle('active', kind === 'expense');
   document.getElementById('btnKindExpense').classList.toggle('expense-active', kind === 'expense');
   document.getElementById('recurringRow').style.display = kind === 'expense' ? 'block' : 'none';
-  document.getElementById('quickCatRow').style.display = kind === 'expense' ? 'flex' : 'none';
+  renderFrequentCats(); // F2: частые категории пересобираются под выбранный тип
   if (kind === 'income') {
     document.getElementById('recurringCheckbox').checked = false;
     document.getElementById('recurringEndDateRow').style.display = 'none';
@@ -3331,17 +3353,55 @@ function syncQuickCatButtons() {
   });
 }
 
-document.querySelectorAll('.quick-cat-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const sel = document.getElementById('categorySelect');
-    if (![...sel.options].some(o => o.value === btn.dataset.cat)) {
-      toast(`Категория «${btn.dataset.cat}» ещё не создана`);
-      return;
-    }
-    sel.value = btn.dataset.cat;
-    sel.dispatchEvent(new Event('change'));
-  });
+// F2: чипы «частых категорий» строятся по фактической частоте использования (kind-aware),
+// с добором из существующих категорий, если истории мало.
+function getFrequentCategories(kind, n = 6) {
+  const counts = {};
+  state.transactions.forEach(t => { if (t.kind === kind && t.category) counts[t.category] = (counts[t.category] || 0) + 1; });
+  const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([c]) => c);
+  if (ranked.length < n) {
+    state.categories.filter(c => c.kind === kind).forEach(c => { if (!ranked.includes(c.name)) ranked.push(c.name); });
+  }
+  return ranked.slice(0, n);
+}
+
+function renderFrequentCats() {
+  const row = document.getElementById('quickCatRow');
+  if (!row) return;
+  const current = document.getElementById('categorySelect').value;
+  const cats = getFrequentCategories(state.kind, 6);
+  row.innerHTML = cats.length
+    ? cats.map(c => `<button type="button" class="quick-cat-btn${c === current ? ' active' : ''}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')
+    : '<span class="quick-cat-hint" style="margin:0;">Категорий пока нет — добавьте через «Все поля»</span>';
+}
+
+// Event delegation, т.к. чипы перестраиваются динамически.
+document.getElementById('quickCatRow').addEventListener('click', (e) => {
+  const btn = e.target.closest('.quick-cat-btn');
+  if (!btn) return;
+  const sel = document.getElementById('categorySelect');
+  if (![...sel.options].some(o => o.value === btn.dataset.cat)) {
+    toast(`Категория «${btn.dataset.cat}» ещё не создана`);
+    return;
+  }
+  sel.value = btn.dataset.cat;
+  sel.dispatchEvent(new Event('change'));
+  syncQuickCatButtons();
 });
+
+function setSheetMode(mode) {
+  state.sheetMode = mode;
+  const panel = document.getElementById('txSheetPanel');
+  if (panel) {
+    panel.classList.toggle('mode-quick', mode === 'quick');
+    panel.classList.toggle('mode-full', mode === 'full');
+  }
+  document.getElementById('sheetModeQuickBtn').classList.toggle('active', mode === 'quick');
+  document.getElementById('sheetModeFullBtn').classList.toggle('active', mode === 'full');
+  if (mode === 'quick') renderFrequentCats();
+}
+document.getElementById('sheetModeQuickBtn').addEventListener('click', () => setSheetMode('quick'));
+document.getElementById('sheetModeFullBtn').addEventListener('click', () => setSheetMode('full'));
 
 // Remembers the last category/name used per kind (income/expense), so the
 // form pre-selects it next time instead of always resetting to the first
@@ -3418,7 +3478,8 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   const category = sel.value;
   if (!category || category === '__new__') { toast('Выберите или добавьте категорию'); return; }
   let subcategory = null;
-  if (document.getElementById('nameRow').classList.contains('visible')) {
+  // F2: в быстром режиме «Название» не требуем (поля скрыты) — добавляем по одной категории.
+  if (state.sheetMode !== 'quick' && document.getElementById('nameRow').classList.contains('visible')) {
     const nameSel = document.getElementById('nameSelect');
     if (!nameSel.value || nameSel.value === '__new__') { toast('Выберите или добавьте название'); return; }
     subcategory = nameSel.value;
@@ -4211,7 +4272,9 @@ wireVoiceButton(notepadMicBtn, addShoppingNote);
 // empty, and match spoken words against existing categories/subcategories
 // so voice entries land in the right place instead of always needing the
 // dropdowns touched by hand.
-wireVoiceButton(document.getElementById('txMicBtn'), async (transcript) => {
+// F4: общий разбор голоса для формы операции (сумма + категория + остаток в комментарий).
+// Используется и полем комментария, и крупным полем суммы в быстром режиме (F2).
+async function applyTxVoiceTranscript(transcript) {
   const commentInput = document.getElementById('commentInput');
   const amountInput = document.getElementById('amountInput');
   let remaining = transcript;
@@ -4236,11 +4299,14 @@ wireVoiceButton(document.getElementById('txMicBtn'), async (transcript) => {
       }
       toast(`Категория: ${catMatch.category}${catMatch.subcategory ? ' · ' + catMatch.subcategory : ''}`);
       remaining = remaining.replace(wordBoundaryRegex(catMatch.matchText), '');
+      syncQuickCatButtons();
     }
   }
 
   commentInput.value = remaining.trim();
-});
+}
+wireVoiceButton(document.getElementById('txMicBtn'), applyTxVoiceTranscript);
+wireVoiceButton(document.getElementById('txAmountMicBtn'), applyTxVoiceTranscript);
 
 function escapeAttr(s) {
   return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
