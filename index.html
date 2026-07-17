@@ -1344,6 +1344,7 @@
       <h1>Семейный бюджет</h1>
       <div class="subtitle" id="authStatusLabel">Демо-режим</div>
     </div>
+    <button type="button" class="header-btn" id="pushBtn" style="display:none;"><i data-lucide="bell"></i> <span id="pushBtnLabel">Напоминания</span></button>
     <button type="button" class="header-btn" id="pinBtn" style="display:none;"><i data-lucide="lock"></i> PIN</button>
     <button type="button" class="header-btn" id="authBtn">Войти</button>
   </div>
@@ -2560,6 +2561,7 @@ function updateAuthUI() {
   document.getElementById('authStatusLabel').textContent = currentUser ? 'Артём' : 'Демо-режим';
   document.getElementById('demoBanner').classList.toggle('visible', !currentUser);
   document.getElementById('pinBtn').style.display = (currentUser && hasCryptoSubtle) ? 'inline-block' : 'none';
+  if (typeof refreshPushUI === 'function') refreshPushUI();
   checkPinLock();
 }
 
@@ -6334,6 +6336,79 @@ function handleUrlAction() {
   }
 }
 
+/* ---------------- F5 (2026-07-17): push-напоминания о платежах ----------------
+   Клиент: регистрирует service worker, подписывается через PushManager с публичным
+   VAPID-ключом и сохраняет подписку в таблицу push_subscriptions. Отправку выполняет
+   серверная Edge Function по расписанию (см. F5_SETUP.md). */
+const VAPID_PUBLIC_KEY = 'BIJ18JyllgjqyHjXXOZB2ri_F1PRglZAaacUBpPrAKwGEBnPVRWY6cgmbnfVu8FcrdSjEqH-lZ6F0PCFgzxcAdM';
+let pushSwReg = null;
+function pushSupported() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && window.isSecureContext;
+}
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+async function registerPushServiceWorker() {
+  if (!pushSupported()) return;
+  try { pushSwReg = await navigator.serviceWorker.register('sw.js'); } catch (e) { /* SW недоступен (напр. file://) */ }
+  refreshPushUI();
+}
+async function currentPushSubscription() {
+  try {
+    if (!pushSwReg) pushSwReg = await navigator.serviceWorker.ready;
+    return await pushSwReg.pushManager.getSubscription();
+  } catch (e) { return null; }
+}
+async function refreshPushUI() {
+  const btn = document.getElementById('pushBtn');
+  if (!btn) return;
+  if (!pushSupported() || !currentUser) { btn.style.display = 'none'; return; }
+  btn.style.display = 'inline-block';
+  const sub = await currentPushSubscription();
+  const label = document.getElementById('pushBtnLabel');
+  if (label) label.textContent = sub ? 'Напоминания вкл.' : 'Напоминания';
+  btn.classList.toggle('active', !!sub);
+}
+async function enablePush() {
+  if (!pushSupported()) { toast('Push-уведомления не поддерживаются в этом браузере'); return; }
+  if (!currentUser) { toast('Войдите, чтобы включить напоминания'); return; }
+  if (!pushSwReg) await registerPushServiceWorker();
+  if (!pushSwReg) { toast('Не удалось подготовить уведомления'); return; }
+  let perm = Notification.permission;
+  if (perm === 'default') perm = await Notification.requestPermission();
+  if (perm !== 'granted') { toast('Разрешение на уведомления не выдано'); return; }
+  let sub = await currentPushSubscription();
+  try {
+    if (!sub) sub = await pushSwReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+  } catch (e) { toast('Не удалось подписаться: ' + (e.message || e)); return; }
+  const json = sub.toJSON();
+  const { error } = await supabaseClient.from('push_subscriptions').upsert({
+    user_id: currentUser.id, endpoint: sub.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth,
+  }, { onConflict: 'endpoint' });
+  if (error) { toast('Не удалось сохранить подписку: ' + error.message); return; }
+  toast('Напоминания о платежах включены');
+  refreshPushUI();
+}
+async function disablePush() {
+  const sub = await currentPushSubscription();
+  if (sub) {
+    try { await supabaseClient.from('push_subscriptions').delete().eq('endpoint', sub.endpoint); } catch (e) {}
+    try { await sub.unsubscribe(); } catch (e) {}
+  }
+  toast('Напоминания отключены');
+  refreshPushUI();
+}
+document.getElementById('pushBtn').addEventListener('click', async () => {
+  const sub = await currentPushSubscription();
+  if (sub) disablePush(); else enablePush();
+});
+
+registerPushServiceWorker();
 loadAll().then(handleUrlAction);
 </script>
 </body>
