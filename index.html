@@ -653,6 +653,14 @@
 
   .page-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
   .app-header .page-tabs { margin-bottom: 0; }
+  /* ТЗ 2026-07-18: экран «Аналитика» + краткая карточка-тизер на главной */
+  .analytics-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .analytics-title { margin: 0; font-size: 20px; }
+  .analytics-back { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; min-height: 44px; }
+  .analytics-back svg { width: 16px; height: 16px; }
+  .analytics-teaser { display: block; width: 100%; text-align: left; cursor: pointer; border: 1px solid var(--border); background: var(--card-bg); }
+  .analytics-teaser-text { font-size: 13px; color: var(--text-secondary); line-height: 1.45; margin-bottom: 8px; }
+  .analytics-teaser-link { color: var(--btn-primary); font-weight: 700; font-size: 13.5px; }
   .page-tab-btn {
     padding: 10px 18px;
     border-radius: var(--radius-sm);
@@ -1360,7 +1368,8 @@
     <button type="button" class="header-btn" id="authBtn">Войти</button>
   </div>
   <div class="page-tabs">
-    <button type="button" class="page-tab-btn active" id="tabBudgetBtn">Бюджет</button>
+    <button type="button" class="page-tab-btn active" id="tabBudgetBtn">Главная</button>
+    <button type="button" class="page-tab-btn" id="tabAnalyticsBtn">Аналитика</button>
     <button type="button" class="page-tab-btn" id="tabDebtsBtn">Долги</button>
     <button type="button" class="page-tab-btn" id="tabShoppingBtn">Покупки</button>
     <button type="button" class="page-tab-btn" id="tabIncomeBtn">Доходы</button>
@@ -1426,8 +1435,15 @@
     <div id="recentTxList"></div>
   </div>
 
+  <!-- §6.9: краткая аналитическая карточка → ведёт на экран «Аналитика» -->
+  <button type="button" class="panel analytics-teaser" id="analyticsTeaser">
+    <h2 style="margin-bottom:6px;"><i data-lucide="bar-chart-3" style="width:18px;height:18px;vertical-align:-3px;"></i> Аналитика месяца</h2>
+    <div class="analytics-teaser-text" id="analyticsTeaserText"></div>
+    <span class="analytics-teaser-link">Посмотреть аналитику →</span>
+  </button>
+
   <div class="panel" id="aiSummaryPanel" style="display:none;">
-    <h2>🤖 ИИ-сводка</h2>
+    <h2><i data-lucide="sparkles" style="width:18px;height:18px;vertical-align:-3px;"></i> ИИ-сводка</h2>
     <div class="ai-summary-toggle">
       <button type="button" id="aiSummaryWeekBtn" class="active">Неделя</button>
       <button type="button" id="aiSummaryMonthBtn">Месяц</button>
@@ -1575,7 +1591,7 @@
         <div class="chart-takeaway" id="expenseOverviewTakeaway"></div>
       </div>
 
-      <div class="panel">
+      <div class="panel" id="dynamicsPanel">
         <h2 style="justify-content:space-between;">
           <span>Динамика <span id="dynamicsPeriodLabel">по месяцам</span> <span class="badge-info" id="dynamicsBadge" role="button" tabindex="0" style="cursor:pointer;" title="Переключить 6 / 12 месяцев" onclick="toggleDynamicsMonths()">12 мес</span></span>
           <span style="display:flex; gap:6px;">
@@ -1587,7 +1603,7 @@
       </div>
 
       <!-- §11 (2026-07-17): «Динамика расходов» — только расходы, одноцветные синие столбцы -->
-      <div class="panel">
+      <div class="panel" id="expenseTrendPanel">
         <h2><span>Динамика расходов</span> <span class="badge-info" id="expenseTrendBadge" role="button" tabindex="0" style="cursor:pointer;" title="Переключить 6 / 12 месяцев" onclick="toggleExpenseTrendMonths()">6 мес</span></h2>
         <div class="chart-skeleton" id="expenseTrendSkeleton"></div>
         <div class="chart-container" id="expenseTrendScroll"><div class="chart-box" id="expenseTrendBox"><canvas id="expenseTrendChart"></canvas></div></div>
@@ -1596,7 +1612,7 @@
       </div>
 
       <!-- PERIOD COMPARISON -->
-      <div class="panel">
+      <div class="panel" id="periodComparisonPanel">
         <h2 id="periodComparisonTitle">Сравнение периодов</h2>
         <div id="periodComparisonBox"></div>
       </div>
@@ -1672,12 +1688,12 @@
 
 
       <!-- RECURRING EXPENSES STRUCTURE -->
-      <div class="panel">
+      <div class="panel" id="recurringBreakdownPanel">
         <h2>Структура регулярных расходов</h2>
         <div id="recurringBreakdown"></div>
       </div>
 
-      <div class="charts-grid">
+      <div class="charts-grid" id="categoryRankingGrid">
         <div class="panel" style="margin-bottom:0;">
           <h2>Доходы по категориям</h2>
           <div class="category-ranking" id="incomeCategoryRanking"></div>
@@ -1716,6 +1732,15 @@
       </div>
     </div>
   </div>
+  </div>
+
+  <!-- ТЗ 2026-07-18 Этап 1: отдельный экран «Аналитика» (подробные графики переносятся сюда) -->
+  <div id="analyticsView" style="display:none;">
+    <div class="analytics-head">
+      <button type="button" class="btn-ghost analytics-back" id="analyticsBackBtn" aria-label="Назад на главную"><i data-lucide="arrow-left"></i> На главную</button>
+      <h2 class="analytics-title">Аналитика</h2>
+    </div>
+    <div id="analyticsBody"></div>
   </div>
 
   <div id="debtsView" style="display:none;">
@@ -2989,6 +3014,7 @@ document.getElementById('btnKindExpense').addEventListener('click', () => setKin
 
 /* ---------------- UI: PAGE TABS ---------------- */
 document.getElementById('tabBudgetBtn').addEventListener('click', () => switchPageTab('budget'));
+document.getElementById('tabAnalyticsBtn').addEventListener('click', () => switchPageTab('analytics'));
 document.getElementById('tabDebtsBtn').addEventListener('click', () => switchPageTab('debts'));
 document.getElementById('tabShoppingBtn').addEventListener('click', () => switchPageTab('shopping'));
 document.getElementById('tabIncomeBtn').addEventListener('click', () => switchPageTab('income'));
@@ -3028,6 +3054,68 @@ function switchPageTab(tab) {
   document.getElementById('debtsView').style.display = tab === 'debts' ? '' : 'none';
   document.getElementById('shoppingView').style.display = tab === 'shopping' ? '' : 'none';
   document.getElementById('incomeView').style.display = tab === 'income' ? '' : 'none';
+  const av = document.getElementById('analyticsView');
+  if (av) av.style.display = tab === 'analytics' ? '' : 'none';
+  const tb = document.getElementById('tabAnalyticsBtn');
+  if (tb) tb.classList.toggle('active', tab === 'analytics');
+  if (tab === 'analytics') {
+    window.scrollTo(0, 0);
+    // Графики, отрисованные в скрытом контейнере, имеют нулевой размер — перерисовываем.
+    requestAnimationFrame(renderAnalyticsCharts);
+  }
+}
+function renderAnalyticsCharts() {
+  renderExpenseComparison();
+  renderDynamicsChart();
+  renderMonthlyExpenseTrend();
+  renderPeriodComparison();
+  renderRecurringBreakdown();
+  renderCategoryRanking('incomeCategoryRanking', 'income');
+  renderCategoryRanking('expenseCategoryRanking', 'expense');
+  if (window.lucide) lucide.createIcons();
+}
+// Экран «Аналитика»: перенос подробных графиков с главной (один раз, на инициализации).
+let analyticsRelocated = false;
+function initAnalyticsScreen() {
+  if (analyticsRelocated) return;
+  const body = document.getElementById('analyticsBody');
+  if (!body) return;
+  ['expenseOverviewPanel', 'dynamicsPanel', 'expenseTrendPanel', 'periodComparisonPanel', 'recurringBreakdownPanel', 'categoryRankingGrid']
+    .forEach(id => { const el = document.getElementById(id); if (el) body.appendChild(el); });
+  analyticsRelocated = true;
+}
+document.getElementById('analyticsTeaser').addEventListener('click', () => switchPageTab('analytics'));
+document.getElementById('analyticsBackBtn').addEventListener('click', () => switchPageTab('budget'));
+
+// §6.9: краткий аналитический вывод на главной (сопоставимый период по расходам).
+function renderAnalyticsTeaser() {
+  const box = document.getElementById('analyticsTeaserText');
+  if (!box) return;
+  let curExpense, prevExpense, curByCat, prevByCat, curLabel, prevLabel;
+  if (isCurrentMonthActive()) {
+    const curKey = state.selectedMonth, prevKey = prevMonthKey(curKey);
+    const dayN = new Date().getDate(), prevDayN = Math.min(dayN, daysInMonthKey(prevKey));
+    curExpense = sumInMonthUpToDay(curKey, dayN, 'expense');
+    prevExpense = sumInMonthUpToDay(prevKey, prevDayN, 'expense');
+    curLabel = dayRangeLabel(curKey, 1, dayN); prevLabel = dayRangeLabel(prevKey, 1, prevDayN);
+    curByCat = {}; txInMonthUpToDay(curKey, dayN, 'expense').forEach(t => curByCat[t.category] = (curByCat[t.category] || 0) + Number(t.amount));
+    prevByCat = {}; txInMonthUpToDay(prevKey, prevDayN, 'expense').forEach(t => prevByCat[t.category] = (prevByCat[t.category] || 0) + Number(t.amount));
+  } else {
+    const cur = activeMonths(), prev = previousPeriodMonths();
+    curExpense = sumForMonths(cur, 'expense'); prevExpense = sumForMonths(prev, 'expense');
+    curLabel = state.viewMode === 'year' ? state.selectedYear : capFirst(monthLabel(state.selectedMonth));
+    prevLabel = state.viewMode === 'year' ? String(+state.selectedYear - 1) : (prev.length ? capFirst(monthLabel(prev[prev.length - 1])) : '');
+    curByCat = {}; state.transactions.filter(t => cur.includes(monthKey(t.date)) && t.kind === 'expense' && hasHappened(t)).forEach(t => curByCat[t.category] = (curByCat[t.category] || 0) + Number(t.amount));
+    prevByCat = {}; state.transactions.filter(t => prev.includes(monthKey(t.date)) && t.kind === 'expense' && hasHappened(t)).forEach(t => prevByCat[t.category] = (prevByCat[t.category] || 0) + Number(t.amount));
+  }
+  if (!prevExpense) { box.textContent = 'Пока недостаточно данных для сравнения периодов.'; return; }
+  const pct = Math.abs((curExpense - prevExpense) / prevExpense * 100).toFixed(0);
+  const dir = curExpense < prevExpense ? 'ниже' : 'выше';
+  const cats = new Set([...Object.keys(curByCat), ...Object.keys(prevByCat)]);
+  const drivers = [...cats].map(c => ({ c, d: (curByCat[c] || 0) - (prevByCat[c] || 0) }))
+    .filter(x => x.d !== 0).sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 2).map(x => x.c).join(' и ');
+  box.innerHTML = `Расходы за ${escapeHtml(curLabel)} на ${pct}% ${dir}, чем за ${escapeHtml(prevLabel)}.`
+    + (drivers ? `<br>Основное изменение: ${escapeHtml(drivers.toLowerCase())}.` : '');
 }
 
 /* ---------------- UI: VIEW MODE (MONTH / YEAR) ---------------- */
@@ -6340,6 +6428,7 @@ function toggleCategoryRankingExpand(kind) {
 
 /* ---------------- MASTER RENDER ---------------- */
 function renderEverything() {
+  initAnalyticsScreen(); // перенос подробных графиков на экран «Аналитика» (однократно)
   populateMonthSelect();
   populateYearSelect();
   populateTxPeriodSelect();
@@ -6352,6 +6441,7 @@ function renderEverything() {
   renderExpenseComparison();
   renderDynamicsChart();
   renderMonthlyExpenseTrend();
+  renderAnalyticsTeaser();
   renderPeriodComparison();
   renderCategoryRanking('incomeCategoryRanking', 'income');
   renderCategoryRanking('expenseCategoryRanking', 'expense');
