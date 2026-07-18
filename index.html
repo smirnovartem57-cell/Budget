@@ -711,6 +711,11 @@
   /* §22: контейнер графика не выходит за ширину экрана; canvas тянется по контейнеру. */
   .chart-container { width: 100%; min-width: 0; overflow: hidden; }
   .chart-container canvas { display: block; max-width: 100%; }
+  /* §20: skeleton загрузки графика — сохраняет высоту блока, без layout shift. */
+  .chart-skeleton { height: 230px; border-radius: var(--radius-sm); margin-bottom: 6px;
+    background: linear-gradient(90deg, #EEF2F7 25%, #F6F9FC 37%, #EEF2F7 63%);
+    background-size: 400% 100%; animation: chart-shimmer 1.4s ease infinite; }
+  @keyframes chart-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
   /* Daily view can be wider than the screen and scrolls horizontally inside its own
      container (not the page), so each day gets a readable width. 2026-07-16 */
   .chart-scroll { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
@@ -1564,6 +1569,7 @@
       <!-- §6 (2026-07-17): «Обзор расходов» — текущий месяц против сопоставимого периода прошлого -->
       <div class="panel" id="expenseOverviewPanel">
         <h2><span>Обзор расходов</span> <span class="badge-info badge-normalcase" id="expenseOverviewBadge"></span></h2>
+        <div class="chart-skeleton" id="expenseOverviewSkeleton"></div>
         <div class="chart-scroll" id="expenseOverviewScroll"><div class="chart-box" id="expenseOverviewBox"><canvas id="expenseOverviewChart"></canvas></div></div>
         <div id="expenseOverviewEmpty" class="empty-note" style="display:none;">Нет расходов за выбранный период</div>
         <div class="chart-takeaway" id="expenseOverviewTakeaway"></div>
@@ -1583,6 +1589,7 @@
       <!-- §11 (2026-07-17): «Динамика расходов» — только расходы, одноцветные синие столбцы -->
       <div class="panel">
         <h2><span>Динамика расходов</span> <span class="badge-info" id="expenseTrendBadge" role="button" tabindex="0" style="cursor:pointer;" title="Переключить 6 / 12 месяцев" onclick="toggleExpenseTrendMonths()">6 мес</span></h2>
+        <div class="chart-skeleton" id="expenseTrendSkeleton"></div>
         <div class="chart-container" id="expenseTrendScroll"><div class="chart-box" id="expenseTrendBox"><canvas id="expenseTrendChart"></canvas></div></div>
         <div id="expenseTrendEmpty" class="empty-note" style="display:none;">Недостаточно данных для построения графика</div>
         <div class="chart-takeaway" id="expenseTrendTakeaway"></div>
@@ -5932,6 +5939,8 @@ function renderMonthlyExpenseTrend() {
   const emptyEl = document.getElementById('expenseTrendEmpty');
   const takeaway = document.getElementById('expenseTrendTakeaway');
   const badge = document.getElementById('expenseTrendBadge');
+  const skel = document.getElementById('expenseTrendSkeleton');
+  if (skel) skel.style.display = 'none'; // данные загружены — §20
   const n = state.expenseTrendMonthsN || 6;
   badge.textContent = `${n} мес`;
 
@@ -5963,14 +5972,15 @@ function renderMonthlyExpenseTrend() {
         tooltip: {
           callbacks: {
             title: (items) => { const idx = items[0].dataIndex; const l = monthLabel(months[idx]); return l.charAt(0).toUpperCase() + l.slice(1) + (months[idx] === currentKey ? ' (не завершён)' : ''); },
-            label: (item) => {
-              const idx = item.dataIndex;
-              let s = `Расходы: ${fmt.format(item.parsed.y)}`;
-              if (idx > 0 && months[idx] !== currentKey) {
-                const prev = values[idx - 1];
-                if (prev > 0) { const d = values[idx] - prev; s += `  ·  к пред. мес. ${d >= 0 ? '+' : '−'}${fmt.format(Math.abs(d))}`; }
-              }
-              return s;
+            label: (item) => `Расходы: ${fmt.format(item.parsed.y)}`,
+            afterBody: (items) => {
+              const idx = items[0].dataIndex;
+              if (idx === 0 || months[idx] === currentKey) return '';
+              const prev = values[idx - 1];
+              if (!prev) return '';
+              const d = values[idx] - prev;
+              const pct = Math.abs(d / prev * 100).toFixed(1).replace(/\.0$/, '');
+              return `К пред. месяцу: ${d >= 0 ? '+' : '−'}${fmt.format(Math.abs(d))} (${d >= 0 ? '+' : '−'}${pct}%)`;
             }
           }
         }
@@ -6161,6 +6171,8 @@ function renderExpenseComparison() {
   const takeaway = document.getElementById('expenseOverviewTakeaway');
   const badge = document.getElementById('expenseOverviewBadge');
 
+  const skel = document.getElementById('expenseOverviewSkeleton');
+  if (skel) skel.style.display = 'none'; // данные загружены — §20
   if (state.viewMode === 'year') { panel.style.display = 'none'; return; }
   panel.style.display = '';
 
