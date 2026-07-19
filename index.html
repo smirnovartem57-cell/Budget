@@ -664,6 +664,7 @@
   /* ТЗ 2026-07-18: экран «Аналитика» + краткая карточка-тизер на главной */
   .analytics-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
   .analytics-title { margin: 0; font-size: 20px; }
+  .analytics-section-head { font-size: 17px; margin: 22px 0 12px; color: var(--text-primary); }
   .analytics-back { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; min-height: 44px; }
   .analytics-back svg { width: 16px; height: 16px; }
   .analytics-teaser { display: block; width: 100%; text-align: left; cursor: pointer; border: 1px solid var(--border); background: var(--card-bg); }
@@ -762,6 +763,14 @@
   /* §18: единый текстовый вывод под графиком */
   .chart-takeaway { font-size: 12.5px; color: var(--text-secondary); line-height: 1.4; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
   .chart-takeaway strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  /* §7.4: вклад категорий под «Обзором расходов» (вместо отдельной карточки сравнения) */
+  .overview-drivers { margin-top: 10px; }
+  .overview-drivers-title { font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; }
+  .overview-driver-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 13px; color: var(--text-primary); }
+  .overview-driver-row .drv-up { color: var(--expense-accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .overview-driver-row .drv-down { color: var(--income-accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+  /* §7.4: отдельная карточка «Сравнение периодов» больше не показывается — данные под графиком. */
+  #periodComparisonPanel { display: none; }
   .period-compare-sub { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.35; }
   .period-compare-row { display: flex; gap: 16px; margin-bottom: 12px; }
   .period-compare-col { flex: 1; min-width: 0; }
@@ -1641,7 +1650,7 @@
       </div>
 
       <!-- SUBSCRIPTIONS -->
-      <div class="panel">
+      <div class="panel" id="subscriptionsPanel">
         <h2 style="justify-content:space-between;">
           <span><img class="h2-icon" src="icons/subscriptions.png" alt="">Подписки</span>
           <span class="badge-info badge-normalcase" id="subscriptionsTotalBadge">0 ₽/мес.</span>
@@ -1672,7 +1681,7 @@
       </div>
 
       <!-- RECURRING EXPENSES -->
-      <div class="panel">
+      <div class="panel" id="recurringPanel">
         <h2 style="justify-content:space-between;">
           <span><img class="h2-icon" src="icons/payments.png" alt="">Ежемесячные расходы</span>
           <span style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
@@ -3121,7 +3130,15 @@ function initAnalyticsScreen() {
   if (analyticsRelocated) return;
   const body = document.getElementById('analyticsBody');
   if (!body) return;
-  ['expenseOverviewPanel', 'dynamicsPanel', 'expenseTrendPanel', 'periodComparisonPanel', 'recurringBreakdownPanel', 'categoryRankingGrid']
+  // Основные графики и рейтинги.
+  ['expenseOverviewPanel', 'dynamicsPanel', 'expenseTrendPanel', 'periodComparisonPanel', 'categoryRankingGrid']
+    .forEach(id => { const el = document.getElementById(id); if (el) body.appendChild(el); });
+  // §7.6: раздел «Регулярные платежи» — структура + подписки + ежемесячные вместе.
+  const head = document.createElement('h2');
+  head.className = 'analytics-section-head';
+  head.textContent = 'Регулярные платежи';
+  body.appendChild(head);
+  ['recurringBreakdownPanel', 'subscriptionsPanel', 'recurringPanel']
     .forEach(id => { const el = document.getElementById(id); if (el) body.appendChild(el); });
   analyticsRelocated = true;
 }
@@ -6388,7 +6405,22 @@ function renderExpenseComparison() {
   if (prevTotal > 0) {
     const pct = Math.abs((curTotal - prevTotal) / prevTotal * 100).toFixed(1).replace(/\.0$/, '');
     const dir = curTotal < prevTotal ? 'ниже' : 'выше';
-    takeaway.innerHTML = `Расходы за ${periodLabelStr} — <strong>${fmt.format(curTotal)}</strong>, это на ${pct}% ${dir}, чем за тот же период ${prevName} (${fmt.format(prevTotal)}).`;
+    // §7.4: вклад категорий по сопоставимому диапазону (заменяет отдельную карточку сравнения)
+    const prevN = isCurrent ? Math.min(N, prevDaysTotal) : prevDaysTotal;
+    const curByCat = {}; txInMonthUpToDay(curKey, N, 'expense').forEach(t => curByCat[t.category] = (curByCat[t.category] || 0) + Number(t.amount));
+    const prevByCat = {}; txInMonthUpToDay(prevKey, prevN, 'expense').forEach(t => prevByCat[t.category] = (prevByCat[t.category] || 0) + Number(t.amount));
+    const rising = curTotal >= prevTotal;
+    const drivers = [...new Set([...Object.keys(curByCat), ...Object.keys(prevByCat)])]
+      .map(c => ({ c, d: (curByCat[c] || 0) - (prevByCat[c] || 0) }))
+      .filter(x => rising ? x.d > 0 : x.d < 0)
+      .sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 3);
+    let html = `Расходы за ${periodLabelStr} — <strong>${fmt.format(curTotal)}</strong>, это на ${pct}% ${dir}, чем за тот же период ${prevName} (${fmt.format(prevTotal)}).`;
+    if (drivers.length) {
+      html += `<div class="overview-drivers"><div class="overview-drivers-title">${rising ? 'Наибольший рост' : 'Наибольшее снижение'}:</div>`
+        + drivers.map(x => `<div class="overview-driver-row"><span>${escapeHtml(x.c)}</span><span class="${x.d > 0 ? 'drv-up' : 'drv-down'}">${x.d > 0 ? '+' : '−'}${fmt.format(Math.abs(x.d))}</span></div>`).join('')
+        + `</div>`;
+    }
+    takeaway.innerHTML = html;
   } else {
     takeaway.innerHTML = `Расходы за ${periodLabelStr}: <strong>${fmt.format(curTotal)}</strong>. За ${prevName} данных для сравнения пока нет.`;
   }
