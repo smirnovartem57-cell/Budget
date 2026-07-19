@@ -68,11 +68,11 @@
 <style>
   /* ===================== ПАЛИТРА (light premium fintech, ТЗ от 11.07.2026, обновлено) ===================== */
   :root {
-    --bg-page: #F7F9FC;
+    --bg-page: #F6F8FB;
     --bg-secondary: #EFF3F9;
     --border: #E7EBF2;
     --border-secondary: #ECF1F8;
-    /* Единая палитра ТЗ §4 (2026-07-17): значение цвета одинаково на всех экранах. */
+    /* Единая спокойная палитра ТЗ 2026-07-18 §13. */
     --text-primary: #17213A;
     --text-secondary: #667085;
     --text-muted: #98A2B3;
@@ -84,11 +84,11 @@
     --graphite: #17213A;
     --graphite-hover: #0F1729;
     --graphite-text: #FFFFFF;
-    --income-accent: #22C55E;
-    --income-bg: #E8F7EF;
-    --expense-accent: #EF646F;
-    --expense-bg: #FDECEE;
-    --warning: #F59E0B;
+    --income-accent: #3FA477;
+    --income-bg: #EAF7F1;
+    --expense-accent: #D96672;
+    --expense-bg: #FBEDEF;
+    --warning: #D79A3A;
     --warning-bg: #FFF4E5;
     --mint: #63D3AE; --mint-bg: #ECFBF5;
     --purple: #8B5CF6; --purple-bg: #F2ECFF;
@@ -99,6 +99,9 @@
     --radius-sm: 10px;
     --radius-lg: 20px;
     --shadow-card: 0 8px 24px rgba(16, 24, 40, 0.06);
+    /* §10: три уровня поверхности — слабая тень для секций, заметная для модалок. */
+    --shadow-soft: 0 4px 16px rgba(16, 24, 40, 0.05);
+    --shadow-floating: 0 16px 40px rgba(16, 24, 40, 0.14);
     --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
     --space-5: 24px; --space-6: 32px; --space-7: 40px;
     --bottom-nav-h: 64px;
@@ -345,12 +348,18 @@
   .growth-indicator.partial { color: var(--text-muted); font-weight: 500; font-style: italic; }
   /* A3 (2026-07-17): фраза-прогноз в hero, компактный ряд метрик, лента «Предстоит» */
   .hero-forecast { font-size: 12.5px; color: rgba(255,255,255,0.92); margin-top: 8px; line-height: 1.35; }
-  .mini-metrics { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; margin-bottom: 22px; }
-  .mini-metric { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-card); padding: 10px 8px; text-align: center; }
-  .mini-metric .mm-label { font-size: 11px; color: var(--text-secondary); font-weight: 600; }
-  .mini-metric .mm-value { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: clamp(12px, 3.4vw, 16px); margin-top: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .mini-metric.mm-income .mm-value { color: var(--income-accent); }
-  .mini-metric.mm-expense .mm-value { color: var(--expense-accent); }
+  /* §6.4/§6.5 (2026-07-18): крупные карточки Доход/Расход + строка «Долги» */
+  .io-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .io-card { text-align: left; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-soft); padding: 14px; cursor: pointer; }
+  .io-label { font-size: 13px; color: var(--text-secondary); font-weight: 600; margin-bottom: 4px; }
+  .io-value { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 20px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .io-income .io-value { color: var(--income-accent); }
+  .io-expense .io-value { color: var(--expense-accent); }
+  .debts-row { display: flex; align-items: center; justify-content: space-between; width: 100%; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-soft); padding: 0 14px; min-height: 52px; margin-bottom: 22px; cursor: pointer; }
+  .debts-row-label { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+  .debts-row-right { display: flex; align-items: center; gap: 6px; }
+  .debts-row-value { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; color: var(--warning); }
+  .debts-row-right svg { width: 18px; height: 18px; color: var(--text-muted); }
   .upcoming-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
   .upcoming-row:last-child { border-bottom: none; }
   .upcoming-ico { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -455,7 +464,7 @@
 
   .summary-card.hero {
     grid-column: 1 / -1;
-    background: linear-gradient(135deg, #5F8FF5 0%, #88AAF7 55%, #A8B9F4 100%);
+    background: linear-gradient(135deg, #4F7DF3 0%, #7095EA 100%);
     border: none;
     position: relative;
     overflow: hidden;
@@ -469,16 +478,7 @@
     display: flex; align-items: center; justify-content: center; cursor: pointer;
   }
   .hero-eye-btn svg { width: 16px; height: 16px; }
-  .hero-illustration {
-    position: absolute; right: 14px; bottom: 8px;
-    width: 84px; height: 84px;
-    display: flex; align-items: center; justify-content: center;
-    background: rgba(255,255,255,0.14);
-    border-radius: 50%;
-    color: rgba(255,255,255,0.55);
-    pointer-events: none;
-  }
-  .hero-illustration svg { width: 44px; height: 44px; }
+  .hero-how { background: none; border: none; color: rgba(255,255,255,0.92); font-size: 12.5px; font-weight: 600; text-decoration: underline; cursor: pointer; padding: 6px 0 0; margin-top: 2px; }
   .sparkline-box { position: relative; height: 28px; margin-top: 8px; }
 
   /* main grid */
@@ -1126,12 +1126,10 @@
        in a 3-col row. Бюджет keeps 3-up (hero + 3 metrics). 2026-07-15 */
     #debtsView > .summary-grid, #shoppingView > .summary-grid, #incomeView > .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .summary-card { padding: 10px 8px; }
-    .summary-card .label { font-size: 9.5px; margin-bottom: 4px; }
-    .summary-card .value { font-size: clamp(12px, 3.6vw, 14.5px); }
-    .summary-card.hero .value { font-size: 22px; }
-    .hero-illustration { width: 56px; height: 56px; right: 8px; bottom: 6px; }
-    .hero-illustration svg { width: 28px; height: 28px; }
-    .growth-indicator { font-size: 9.5px; }
+    .summary-card .label { font-size: 12px; margin-bottom: 4px; }
+    .summary-card .value { font-size: clamp(16px, 4.6vw, 20px); }
+    .summary-card.hero .value { font-size: 32px; }
+    .growth-indicator { font-size: 11px; }
     .metric-icon { width: 38px; height: 38px; margin-bottom: 6px; }
     .metric-icon svg { width: 14px; height: 14px; }
     .sparkline-box { height: 18px; margin-top: 4px; }
@@ -1403,23 +1401,33 @@
   <!-- A3 (2026-07-17): hero-остаток + фраза-прогноз + компактный ряд из 3 метрик -->
   <div class="summary-grid">
     <div class="summary-card balance hero">
-      <div class="hero-illustration"><i data-lucide="home"></i></div>
       <div class="hero-top-row">
-        <div class="metric-icon icon-balance"><img src="icons/balance.png" alt=""></div>
+        <div class="label" id="labelBalancePeriod">Остаток за месяц</div>
         <button type="button" class="hero-eye-btn" id="amountsEyeBtn" title="Скрыть/показать суммы" aria-label="Скрыть/показать суммы"><i data-lucide="eye"></i></button>
       </div>
-      <div class="label" id="labelBalancePeriod">Остаток за месяц</div>
       <div class="value kpi-clickable" id="balanceMonth" data-kpi="balance" role="button" tabindex="0" title="Как это посчитано?">—</div>
       <div class="growth-indicator" id="growthBalance"></div>
       <div class="hero-forecast" id="heroForecast"></div>
       <div class="sparkline-box"><canvas id="sparkBalance"></canvas></div>
+      <button type="button" class="hero-how" data-kpi="balance">Как посчитано</button>
     </div>
   </div>
-  <div class="mini-metrics">
-    <div class="mini-metric mm-income kpi-clickable" data-kpi="income" role="button" tabindex="0" title="Как это посчитано?"><div class="mm-label">Доход</div><div class="mm-value" id="sumIncomeMonth">—</div></div>
-    <div class="mini-metric mm-expense kpi-clickable" data-kpi="expense" role="button" tabindex="0" title="Как это посчитано?"><div class="mm-label">Расход</div><div class="mm-value" id="sumExpenseMonth">—</div></div>
-    <div class="mini-metric mm-debts kpi-clickable" data-kpi="debts" role="button" tabindex="0" title="Как это посчитано?"><div class="mm-label">Долги</div><div class="mm-value" id="debtsMonthTotal">—</div></div>
+  <!-- §6.4: две крупные карточки Доход / Расход -->
+  <div class="io-cards">
+    <button type="button" class="io-card io-income kpi-clickable" data-kpi="income" title="Как это посчитано?" aria-label="Доход за период, показать расшифровку">
+      <div class="io-label">Доход</div>
+      <div class="io-value" id="sumIncomeMonth">—</div>
+    </button>
+    <button type="button" class="io-card io-expense kpi-clickable" data-kpi="expense" title="Как это посчитано?" aria-label="Расход за период, показать расшифровку">
+      <div class="io-label">Расход</div>
+      <div class="io-value" id="sumExpenseMonth">—</div>
+    </button>
   </div>
+  <!-- §6.5: долги отдельной компактной строкой -->
+  <button type="button" class="debts-row kpi-clickable" data-kpi="debts" title="Как это посчитано?" aria-label="Долги, показать расшифровку">
+    <span class="debts-row-label">Долги</span>
+    <span class="debts-row-right"><span class="debts-row-value" id="debtsMonthTotal">—</span> <i data-lucide="chevron-right"></i></span>
+  </button>
 
   <!-- A3: единая лента предстоящих движений за месяц (подписки + ежемес. расходы + ожид. доходы) -->
   <div class="panel" id="upcomingFeedPanel">
@@ -5214,7 +5222,7 @@ function renderIncomeDynamics() {
     data: {
       labels,
       datasets: [
-        { label: 'Доход', data: income, backgroundColor: '#22C55E99', borderRadius: 4 },
+        { label: 'Доход', data: income, backgroundColor: '#3FA47799', borderRadius: 4 },
       ]
     },
     options: {
@@ -6222,8 +6230,8 @@ function renderDynamicsChart() {
     data: {
       labels: chartLabels,
       datasets: [
-        { type: 'bar', label: 'Доход', data: income, backgroundColor: '#22C55E99', borderRadius: 4 },
-        { type: 'bar', label: 'Расход', data: expense, backgroundColor: '#EF646F99', borderRadius: 4 },
+        { type: 'bar', label: 'Доход', data: income, backgroundColor: '#3FA47799', borderRadius: 4 },
+        { type: 'bar', label: 'Расход', data: expense, backgroundColor: '#D9667299', borderRadius: 4 },
         { type: 'line', label: 'Остаток', data: balance, borderColor: '#4F7DF3', backgroundColor: '#4F7DF3', tension: 0.3, pointRadius: isDayView ? 1.5 : 3 },
       ]
     },
