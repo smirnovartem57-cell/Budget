@@ -709,6 +709,16 @@
   .analytics-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
   .analytics-title { margin: 0; font-size: 20px; }
   .analytics-section-head { font-size: 17px; margin: 22px 0 12px; color: var(--text-primary); }
+  /* Этап 4: на широком экране «Аналитика» — дашборд-сетка. Графики и категории остаются во
+     всю ширину, а две таблицы регулярных платежей («Подписки» и «Ежемесячные расходы») встают
+     рядом в две колонки, экономя вертикаль. На мобильном/планшете — прежняя одна колонка. */
+  @media (min-width: 1200px) {
+    #analyticsBody { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+    #analyticsBody > * { grid-column: 1 / -1; margin-bottom: 0; }
+    #analyticsBody > .analytics-section-head { margin: 10px 0 0; }
+    #analyticsBody > #subscriptionsPanel,
+    #analyticsBody > #recurringPanel { grid-column: span 1; }
+  }
   .analytics-back { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; min-height: 44px; }
   .analytics-back svg { width: 16px; height: 16px; }
   .analytics-teaser { display: block; width: 100%; text-align: left; cursor: pointer; border: 1px solid var(--border); background: var(--card-bg); }
