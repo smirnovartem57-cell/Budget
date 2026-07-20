@@ -1747,15 +1747,7 @@
           </span>
         </h2>
         <div class="chart-scroll" id="dynamicsChartScroll"><div class="chart-box" id="dynamicsChartBox"><canvas id="dynamicsChart"></canvas></div></div>
-      </div>
-
-      <!-- §11 (2026-07-17): «Динамика расходов» — только расходы, одноцветные синие столбцы -->
-      <div class="panel" id="expenseTrendPanel">
-        <h2><span>Динамика расходов</span> <span class="badge-info" id="expenseTrendBadge" role="button" tabindex="0" style="cursor:pointer;" title="Переключить 6 / 12 месяцев" onclick="toggleExpenseTrendMonths()">6 мес</span></h2>
-        <div class="chart-skeleton" id="expenseTrendSkeleton"></div>
-        <div class="chart-container" id="expenseTrendScroll"><div class="chart-box" id="expenseTrendBox"><canvas id="expenseTrendChart"></canvas></div></div>
-        <div id="expenseTrendEmpty" class="empty-note" style="display:none;">Недостаточно данных для построения графика</div>
-        <div class="chart-takeaway" id="expenseTrendTakeaway"></div>
+        <div class="chart-takeaway" id="dynamicsTakeaway"></div>
       </div>
 
       <!-- PERIOD COMPARISON -->
@@ -2445,7 +2437,6 @@ let state = {
   subscriptionsSort: { key: null, dir: 'asc' }, // key: 'name' | 'amount' | 'date'
   categoryRankingExpanded: { income: false, expense: false },
   dynamicsMonthsN: 6,  // 6 | 12 — default 6 so 12 bars don't crowd on phones (2026-07-15)
-  expenseTrendMonthsN: 6,  // §11: «Динамика расходов» 6 | 12
 };
 
 let currentUser = null;
@@ -3303,7 +3294,6 @@ function switchPageTab(tab) {
 function renderAnalyticsCharts() {
   renderExpenseComparison();
   renderDynamicsChart();
-  renderMonthlyExpenseTrend();
   renderPeriodComparison();
   renderRecurringBreakdown();
   renderCategoryRanking('incomeCategoryRanking', 'income');
@@ -3317,7 +3307,7 @@ function initAnalyticsScreen() {
   const body = document.getElementById('analyticsBody');
   if (!body) return;
   // Основные графики и рейтинги.
-  ['expenseOverviewPanel', 'dynamicsPanel', 'expenseTrendPanel', 'periodComparisonPanel', 'categoryRankingGrid']
+  ['expenseOverviewPanel', 'dynamicsPanel', 'periodComparisonPanel', 'categoryRankingGrid']
     .forEach(id => { const el = document.getElementById(id); if (el) body.appendChild(el); });
   // §7.6: раздел «Регулярные платежи» — структура + подписки + ежемесячные вместе.
   const head = document.createElement('h2');
@@ -6601,73 +6591,15 @@ function allYears() {
   return Array.from(new Set(fullMonthRange().map(k => k.split('-')[0]))).sort();
 }
 
-// §11 (2026-07-17): «Динамика расходов» — только фактические расходы, одноцветные синие
-// столбцы; текущий месяц — насыщённее; 6/12 мес; под графиком — текстовый вывод.
-let expenseTrendInstance = null;
-function toggleExpenseTrendMonths() {
-  state.expenseTrendMonthsN = state.expenseTrendMonthsN === 6 ? 12 : 6;
-  renderMonthlyExpenseTrend();
-}
-function renderMonthlyExpenseTrend() {
-  const ctx = document.getElementById('expenseTrendChart');
-  if (!ctx) return;
-  const emptyEl = document.getElementById('expenseTrendEmpty');
-  const takeaway = document.getElementById('expenseTrendTakeaway');
-  const badge = document.getElementById('expenseTrendBadge');
-  const skel = document.getElementById('expenseTrendSkeleton');
-  if (skel) skel.style.display = 'none'; // данные загружены — §20
-  const n = state.expenseTrendMonthsN || 6;
-  badge.textContent = `${n} мес`;
-
+// §7.2: единый график динамики. Текстовый вывод под ним — средние расходы по завершённым
+// месяцам и месяц-максимум (текущий неполный месяц не искажает среднее). Считается кодом.
+function renderDynamicsTakeaway() {
+  const takeaway = document.getElementById('dynamicsTakeaway');
+  if (!takeaway) return;
+  // В годовом/дневном режиме помесячный вывод не показываем.
+  if (state.viewMode === 'year' || state.dynamicsView === 'day') { takeaway.textContent = ''; return; }
   const currentKey = todayStr().slice(0, 7);
-  const months = lastNMonthKeys(currentKey, n);
-  const values = months.map(m => sumForMonths([m], 'expense'));
-  const isNarrow = window.innerWidth <= 480;
-
-  if (!values.some(v => v > 0)) {
-    if (expenseTrendInstance) { expenseTrendInstance.destroy(); expenseTrendInstance = null; }
-    ctx.style.display = 'none'; emptyEl.style.display = ''; takeaway.textContent = '';
-    return;
-  }
-  ctx.style.display = ''; emptyEl.style.display = 'none';
-
-  const labels = months.map(m => monthLabel(m).slice(0, 3));
-  // Все столбцы — синий; текущий (неполный) месяц — насыщённее.
-  const colors = months.map(m => m === currentKey ? '#3E6DE0' : '#4F7DF3B0');
-
-  if (expenseTrendInstance) expenseTrendInstance.destroy();
-  expenseTrendInstance = new Chart(ctx, {
-    type: 'bar',
-    data: { labels, datasets: [{ label: 'Расходы', data: values, backgroundColor: colors, borderRadius: 4 }] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            title: (items) => { const idx = items[0].dataIndex; const l = monthLabel(months[idx]); return l.charAt(0).toUpperCase() + l.slice(1) + (months[idx] === currentKey ? ' (не завершён)' : ''); },
-            label: (item) => `Расходы: ${fmt.format(item.parsed.y)}`,
-            afterBody: (items) => {
-              const idx = items[0].dataIndex;
-              if (idx === 0 || months[idx] === currentKey) return '';
-              const prev = values[idx - 1];
-              if (!prev) return '';
-              const d = values[idx] - prev;
-              const pct = Math.abs(d / prev * 100).toFixed(1).replace(/\.0$/, '');
-              return `К пред. месяцу: ${d >= 0 ? '+' : '−'}${fmt.format(Math.abs(d))} (${d >= 0 ? '+' : '−'}${pct}%)`;
-            }
-          }
-        }
-      },
-      scales: {
-        y: { ticks: { callback: v => fmt.format(v), maxTicksLimit: isNarrow ? 4 : undefined }, grid: { color: '#E7EBF2' } },
-        x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: isNarrow ? 5 : undefined } }
-      }
-    }
-  });
-
-  // Текстовый вывод по завершённым месяцам (текущий неполный не искажает среднее).
+  const months = last12Months().slice(-state.dynamicsMonthsN);
   const completed = months.filter(m => m !== currentKey).map(m => ({ m, v: sumForMonths([m], 'expense') })).filter(x => x.v > 0);
   if (completed.length >= 2) {
     const avg = completed.reduce((s, x) => s + x.v, 0) / completed.length;
@@ -6832,6 +6764,7 @@ function renderDynamicsChart() {
       }
     }
   });
+  renderDynamicsTakeaway();
 }
 
 // §6 (2026-07-17): «Обзор расходов» — накопительная кривая расходов текущего месяца
@@ -7042,7 +6975,6 @@ function renderEverything() {
   renderRecentTransactions();
   renderExpenseComparison();
   renderDynamicsChart();
-  renderMonthlyExpenseTrend();
   renderAnalyticsTeaser();
   renderPeriodComparison();
   renderCategoryRanking('incomeCategoryRanking', 'income');
