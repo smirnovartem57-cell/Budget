@@ -1365,6 +1365,27 @@
     .bottom-sheet .panel { box-shadow: none; border: none; margin-bottom: 0; }
   }
 
+  /* Контекстные листы (расшифровка KPI, детали операции, фильтры) на десктопе — не в потоке
+     страницы, а центрированное модальное окно, открываемое по действию. Форма «Новая операция»
+     (txSheetOverlay) сюда НЕ входит: она намеренно встроена в сетку страницы на широком экране. */
+  @media (min-width: 768px) {
+    .bottom-sheet-overlay.bottom-sheet-modal { display: none; }
+    .bottom-sheet-overlay.bottom-sheet-modal.visible {
+      display: flex; position: fixed; inset: 0; z-index: 1100;
+      background: rgba(16,24,40,0.5);
+      align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .bottom-sheet-modal .bottom-sheet { position: relative; width: 100%; max-width: 460px;
+      max-height: 85vh; overflow-y: auto; background: var(--card-bg);
+      border-radius: var(--radius); box-shadow: var(--shadow-floating); }
+    .bottom-sheet-modal .bottom-sheet-handle { display: none; }
+    .bottom-sheet-modal .bottom-sheet-close { display: flex; position: absolute; top: 12px; right: 12px;
+      width: 32px; height: 32px; border-radius: 50%; background: var(--bg-secondary); border: none;
+      color: var(--text-secondary); align-items: center; justify-content: center; cursor: pointer; z-index: 1; }
+    .bottom-sheet-modal .bottom-sheet-close svg { width: 16px; height: 16px; }
+  }
+
   /* ===================== RESPONSIVE CARD TABLE (mobile) ===================== */
   /* Compact mobile card (2026-07-15): what — a shared row layout that turns each
      table row into a compact card (name/category left + amount right on line 1,
@@ -2273,7 +2294,7 @@
 </div>
 
 <!-- F8 (2026-07-17): расшифровка KPI по тапу — единый компонент -->
-<div class="bottom-sheet-overlay" id="kpiSheetOverlay">
+<div class="bottom-sheet-overlay bottom-sheet-modal" id="kpiSheetOverlay">
   <div class="bottom-sheet">
     <div class="bottom-sheet-handle"></div>
     <button type="button" class="bottom-sheet-close" id="kpiSheetCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
@@ -2285,7 +2306,7 @@
 </div>
 
 <!-- 2026-07-19: детали и редактирование операции в bottom sheet (ТЗ §6.7/§6.8) -->
-<div class="bottom-sheet-overlay" id="txDetailOverlay">
+<div class="bottom-sheet-overlay bottom-sheet-modal" id="txDetailOverlay">
   <div class="bottom-sheet">
     <div class="bottom-sheet-handle"></div>
     <button type="button" class="bottom-sheet-close" id="txDetailCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
@@ -2310,7 +2331,7 @@
   </div>
 </div>
 
-<div class="bottom-sheet-overlay" id="txFilterOverlay">
+<div class="bottom-sheet-overlay bottom-sheet-modal" id="txFilterOverlay">
   <div class="bottom-sheet">
     <div class="bottom-sheet-handle"></div>
     <button type="button" class="bottom-sheet-close" id="txFilterCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
