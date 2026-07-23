@@ -1456,6 +1456,8 @@
        Single-button cells (delete-only) keep their button since it isn't hidden. */
     .responsive-card-table td.rc-actions .btn-tiny:not(.rc-menu-btn) { display: none; }
     .responsive-card-table td.rc-actions .rc-menu-btn { display: flex; }
+    /* «−» (уменьшить долг) остаётся прямой кнопкой на карточке и в мобильном режиме. */
+    .responsive-card-table td.rc-actions .btn-tiny.debt-minus-btn { display: flex; }
     /* "Скоро/Просрочено" status pill is redundant on mobile — the days-remaining
        line below already says it; hide it inside the compact primary cell only. */
     .responsive-card-table td.rc-primary .status-badge { display: none; }
@@ -4321,6 +4323,7 @@ function renderDebts() {
         <td class="comment-cell debts-comment-cell rc-secondary" onclick="this.classList.toggle('rc-expanded')">${d.comment ? escapeHtml(d.comment) : ''}</td>
         <td class="rc-amount amount-income" style="text-align:right;">${fmt.format(d.is_paid ? d.amount : remaining)}</td>
         <td class="rc-actions" style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
+          ${d.is_paid ? '' : `<button class="btn-tiny icon-btn debt-minus-btn" onclick="partialPayDebt('${d.id}')" title="Уменьшить долг (частичное погашение)" aria-label="Уменьшить долг"><i data-lucide="minus"></i></button>`}
           <button class="btn-tiny icon-btn" onclick="toggleDebtPaid('${d.id}', ${d.is_paid ? 'false' : 'true'})" title="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}" aria-label="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}">${d.is_paid ? '<i data-lucide="undo-2"></i>' : '<i data-lucide="check"></i>'}</button>
           <button class="btn-tiny icon-btn" onclick="toggleDebtEdit('${d.id}')" title="Редактировать" aria-label="Редактировать"><i data-lucide="pencil"></i></button>
           <button class="btn-tiny icon-btn rc-menu-btn" onclick="openDebtActionMenu('${d.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
