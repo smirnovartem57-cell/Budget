@@ -461,10 +461,48 @@
     padding: 28px 20px 60px;
   }
 
-  /* §6: десктоп-дашборд главной. Обёртки-колонки прозрачны на мобильном/планшете (одна колонка,
-     порядок блоков = мобильный), а на ширине от 1100px раскладываются в 3 колонки через CSS Grid.
-     Одна семантическая разметка, без дублирования. */
+  /* §IA (2026-07-24): дашборд главной. Обёртки-колонки прозрачны на мобильном (<900px — одна
+     колонка, порядок блоков = мобильный, без изменений). 900–1099px — две колонки (центр —
+     главный и самый широкий, справа-сверху баланс). ≥1100px — три колонки. Одна семантическая
+     разметка, без дублирования. */
   .home-col { display: contents; }
+
+  /* Общие правила дашборда (планшет + десктоп): информационная иерархия. */
+  @media (min-width: 900px) {
+    /* Доход / Расход — показатели второго уровня: компактнее hero-баланса */
+    .home-col-left .io-card { padding: 11px 13px; }
+    .home-col-left .io-value { font-size: 18px; }
+    .home-col-left .io-label { font-size: 12px; margin-bottom: 2px; }
+    /* правая колонка не дублирует центр: «Последние операции» и тизер аналитики скрыты
+       (Операции живут в центре, подробная аналитика — на вкладке «Аналитика») */
+    .home-col-right #recentTxPanel,
+    .home-col-right #analyticsTeaser,
+    .home-col-right #aiSummaryPanel { display: none; }
+    /* компактные быстрые действия внизу левой колонки (ТЗ: левая колонка) */
+    .home-col-left .quick-actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .home-col-left .quick-action-card { padding: 12px 10px; }
+    .home-col-left .quick-action-sub { display: none; }
+  }
+
+  /* Планшет: две колонки. Центр (Операции + категории + сравнение) — главный и широкий;
+     узкий сайдбар справа: сверху баланс/доход/расход/долги, снизу платежи/подписки/покупки. */
+  @media (min-width: 900px) and (max-width: 1099px) {
+    .container { max-width: 1040px; }
+    .home-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 20px;
+      align-items: start;
+    }
+    .home-col { display: block; }
+    .home-col-center { grid-column: 1; grid-row: 1 / span 2; }
+    .home-col-left   { grid-column: 2; grid-row: 1; }
+    .home-col-right  { grid-column: 2; grid-row: 2; }
+    .home-col-center .main-grid { grid-template-columns: 1fr; }
+    .home-col > .panel, .home-col > .summary-grid, .home-col > .io-cards { margin-bottom: 20px; }
+  }
+
+  /* Десктоп: три колонки. */
   @media (min-width: 1100px) {
     .container { max-width: 1240px; }
     .home-grid {
@@ -1606,7 +1644,7 @@
   <div class="summary-grid">
     <div class="summary-card balance hero">
       <div class="hero-top-row">
-        <div class="label" id="labelBalancePeriod">Остаток за месяц</div>
+        <div class="label" id="labelBalancePeriod">Общий баланс семьи</div>
         <button type="button" class="hero-eye-btn" id="amountsEyeBtn" title="Скрыть/показать суммы" aria-label="Скрыть/показать суммы"><i data-lucide="eye"></i></button>
       </div>
       <div class="value kpi-clickable" id="balanceMonth" data-kpi="balance" role="button" tabindex="0" title="Как это посчитано?">—</div>
@@ -1702,8 +1740,10 @@
   <div class="home-col home-col-center">
 
   <div class="main-grid">
-    <!-- FORM (inline on desktop; slides up as a bottom sheet on mobile, opened via the quick-action card above or the bottom-nav "+" button) -->
-    <div class="bottom-sheet-overlay" id="txSheetOverlay">
+    <!-- FORM: на мобильном — bottom sheet; на десктопе/планшете (≥768px) — модальное окно,
+         открывается быстрым действием «Новая операция» или «+» в нижней навигации (§6.3: форма
+         не занимает главное место на первом экране). -->
+    <div class="bottom-sheet-overlay bottom-sheet-modal" id="txSheetOverlay">
     <div class="bottom-sheet">
     <div class="bottom-sheet-handle"></div>
     <button type="button" class="bottom-sheet-close" id="txSheetCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
@@ -1982,7 +2022,7 @@
       </div>
       <div class="summary-card balance">
         <div class="metric-icon icon-primary"><img src="icons/balance.png" alt=""></div>
-        <div class="label">Остаток за месяц</div>
+        <div class="label">Общий баланс семьи</div>
         <div class="value" id="debtsTabBalance">—</div>
         <div class="growth-indicator" id="growthDebtsTabBalance"></div>
       </div>
@@ -2080,7 +2120,7 @@
       </div>
       <div class="summary-card balance">
         <div class="metric-icon icon-primary"><img src="icons/balance.png" alt=""></div>
-        <div class="label">Остаток за месяц</div>
+        <div class="label">Общий баланс семьи</div>
         <div class="value" id="shoppingTabBalance">—</div>
         <div class="growth-indicator" id="growthShoppingTabBalance"></div>
       </div>
@@ -2158,7 +2198,7 @@
       </div>
       <div class="summary-card balance">
         <div class="metric-icon icon-primary"><img src="icons/balance.png" alt=""></div>
-        <div class="label">Остаток за месяц</div>
+        <div class="label">Общий баланс семьи</div>
         <div class="value" id="incomeTabBalance">—</div>
         <div class="growth-indicator" id="growthIncomeTabBalance"></div>
       </div>
@@ -3419,22 +3459,45 @@ function renderAnalyticsCharts() {
   renderCategoryRanking('expenseCategoryRanking', 'expense');
   if (window.lucide) lucide.createIcons();
 }
-// Экран «Аналитика»: перенос подробных графиков с главной (один раз, на инициализации).
+// Размещение аналитических панелей (один раз, на инициализации). На десктопе (≥1100px) — часть
+// панелей переносится прямо в колонки главной (дашборд); на мобильном/планшете — всё на вкладке
+// «Аналитика», как раньше. Крупные графики всегда живут на вкладке «Аналитика».
 let analyticsRelocated = false;
 function initAnalyticsScreen() {
   if (analyticsRelocated) return;
   const body = document.getElementById('analyticsBody');
   if (!body) return;
-  // Основные графики и рейтинги.
-  ['expenseOverviewPanel', 'dynamicsPanel', 'periodComparisonPanel', 'categoryRankingGrid']
-    .forEach(id => { const el = document.getElementById(id); if (el) body.appendChild(el); });
-  // §7.6: раздел «Регулярные платежи» — структура + подписки + ежемесячные вместе.
-  const head = document.createElement('h2');
-  head.className = 'analytics-section-head';
-  head.textContent = 'Регулярные платежи';
-  body.appendChild(head);
-  ['recurringBreakdownPanel', 'subscriptionsPanel', 'recurringPanel']
-    .forEach(id => { const el = document.getElementById(id); if (el) body.appendChild(el); });
+  const mv = id => document.getElementById(id);
+  // Дашборд-раскладка активна и на планшете (2 колонки), и на десктопе (3 колонки) — от 900px.
+  // На <900px (мобильный) — прежнее поведение: всё на вкладке «Аналитика».
+  const dashboard = window.innerWidth >= 900;
+  const left = document.querySelector('.home-col-left');
+  const center = document.querySelector('.home-col-center');
+  const right = document.querySelector('.home-col-right');
+
+  // Крупные графики — всегда на вкладке «Аналитика».
+  ['expenseOverviewPanel', 'dynamicsPanel'].forEach(id => { const el = mv(id); if (el) body.appendChild(el); });
+
+  if (dashboard && left && center && right) {
+    // Дашборд: быстрые действия — влево; расходы по категориям + сравнение — в центр (над
+    // операциями, это главный блок); обязательные платежи → предстоящее → подписки — вправо.
+    const qa = document.querySelector('.quick-actions-grid'); if (qa) left.appendChild(qa);
+    const mainGrid = center.querySelector('.main-grid');
+    ['categoryRankingGrid', 'periodComparisonPanel'].forEach(id => { const el = mv(id); if (el && mainGrid) center.insertBefore(el, mainGrid); });
+    // Порядок правой колонки по ТЗ: обязательные платежи, ближайшие события, подписки, список покупок.
+    const upcoming = mv('upcomingFeedPanel');
+    const recurringEl = mv('recurringPanel'); if (recurringEl && upcoming) right.insertBefore(recurringEl, upcoming);
+    const subsEl = mv('subscriptionsPanel'); const recentTx = mv('recentTxPanel');
+    if (subsEl) right.insertBefore(subsEl, recentTx || null); // после «Предстоит», перед скрытым блоком последних операций
+    // На вкладке «Аналитика» остаётся структура регулярных расходов.
+    const head = document.createElement('h2'); head.className = 'analytics-section-head'; head.textContent = 'Регулярные платежи'; body.appendChild(head);
+    const bd = mv('recurringBreakdownPanel'); if (bd) body.appendChild(bd);
+  } else {
+    // Мобильный/планшет: всё на вкладке «Аналитика» (без изменений).
+    ['periodComparisonPanel', 'categoryRankingGrid'].forEach(id => { const el = mv(id); if (el) body.appendChild(el); });
+    const head = document.createElement('h2'); head.className = 'analytics-section-head'; head.textContent = 'Регулярные платежи'; body.appendChild(head);
+    ['recurringBreakdownPanel', 'subscriptionsPanel', 'recurringPanel'].forEach(id => { const el = mv(id); if (el) body.appendChild(el); });
+  }
   analyticsRelocated = true;
 }
 document.getElementById('analyticsTeaser').addEventListener('click', () => switchPageTab('analytics'));
@@ -3483,7 +3546,7 @@ function setViewMode(mode) {
   document.getElementById('yearSelect').style.display = mode === 'year' ? '' : 'none';
   document.getElementById('labelIncomePeriod').textContent = mode === 'month' ? 'Доход за месяц' : 'Доход за год';
   document.getElementById('labelExpensePeriod').textContent = mode === 'month' ? 'Расход за месяц' : 'Расход за год';
-  document.getElementById('labelBalancePeriod').textContent = mode === 'month' ? 'Остаток за месяц' : 'Остаток за год';
+  document.getElementById('labelBalancePeriod').textContent = mode === 'month' ? 'Общий баланс семьи' : 'Общий баланс семьи';
   renderEverything();
 }
 
@@ -7126,7 +7189,9 @@ function renderCategoryRanking(boxId, kind) {
     return;
   }
   const byCategory = {};
-  periodTx.forEach(t => { byCategory[t.category] = (byCategory[t.category] || 0) + Number(t.amount); });
+  // Операции без категории собираются в строку «Не распределено» — она появляется только
+  // при фактическом наличии таких операций (ТЗ: строка «Не распределено»).
+  periodTx.forEach(t => { const cat = (t.category && String(t.category).trim()) || 'Не распределено'; byCategory[cat] = (byCategory[cat] || 0) + Number(t.amount); });
   const sorted = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
   const total = sorted.reduce((s, [, v]) => s + v, 0);
   const expanded = state.categoryRankingExpanded[kind];
