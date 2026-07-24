@@ -6575,10 +6575,25 @@ function snapFreshnessLevel(days) {
   if (days <= 7) return 'mid';
   return 'old';
 }
-// Сумма операций заданного типа в диапазоне дат (afterExclusive, throughInclusive].
+// Сумма операций заданного типа в диапазоне дат (afterExclusive, throughInclusive] — граница
+// «предыдущая сверка не включается, текущая включается». Использует фактическую дату операции
+// (t.date), а не дату её внесения в приложение (created_at). Будущие операции (t.date > сегодня)
+// исключаются через hasHappened() — иначе они попадали бы и в «после последней сверки», и в
+// расчёт расхождения между сверками (доп. проверка ТЗ 2026-07-24, §1).
+//
+// Известные ограничения (сознательно не устраняются в рамках этой доработки):
+// 1. Переводы между своими картами: в модели данных приложения нет типа операции 'transfer' —
+//    поле transactions.kind ограничено check-constraint'ом до 'income'/'expense'. Исключать
+//    сейчас нечего; если тип переводов появится, добавить сюда фильтр t.kind !== 'transfer'.
+// 2. Погашение кредитной карты: надёжно отличить «внутреннее перемещение денег в счёт уже
+//    учтённого долга» от обычного расхода в текущей структуре категорий нельзя (категория
+//    «Кредит» — это выплаты по рассрочке/ипотеке, реальный расход, а не погашение револьверного
+//    долга по карте) — риск исключить настоящий расход. Автоматическое исключение сознательно
+//    не реализовано; при появлении отдельной сущности/категории для таких операций — добавить фильтр.
 function sumTxRange(kind, afterExclusive, throughInclusive) {
   return state.transactions
     .filter(t => t.kind === kind
+      && hasHappened(t)
       && (!afterExclusive || t.date > afterExclusive)
       && (!throughInclusive || t.date <= throughInclusive))
     .reduce((s, t) => s + Number(t.amount || 0), 0);
@@ -6711,6 +6726,15 @@ function renderDiscrepancyNote() {
 /* ---- Форма сверки ---- */
 let balanceSaving = false;
 function openBalanceSheet() {
+  // Записывать сверки может только вошедший пользователь (RLS на balance_snapshots разрешает
+  // INSERT/UPDATE/DELETE только роли authenticated — иначе, в отличие от остальных таблиц,
+  // где демо-режим допускает анонимную запись, здесь это сознательно закрыто из-за финансовой
+  // значимости данных). Анониму — предложить войти вместо тихого отказа при сохранении.
+  if (!currentUser) {
+    toast('Войдите в аккаунт, чтобы вносить сверки остатка', 3500);
+    document.getElementById('authModalOverlay').classList.add('visible');
+    return;
+  }
   const snap = latestSnapshot();
   // Предзаполняем из ПРЕДЫДУЩЕЙ ручной сверки (это данные пользователя, а не расчётный
   // баланс — расчётный подставлять без подтверждения нельзя, ТЗ §16).
@@ -6738,6 +6762,9 @@ function updateBalancePreview() {
 async function saveBalanceSnapshot() {
   if (balanceSaving) return;                       // защита от повторного нажатия (ТЗ §10)
   if (!isConfigured) { toast('Подключите базу данных, чтобы сохранять сверки', 3500); return; }
+  // Повторная проверка на случай, если сессия истекла, пока форма была открыта (openBalanceSheet
+  // уже не даёт открыть форму анониму, это — защита на случай гонки состояний).
+  if (!currentUser) { toast('Войдите в аккаунт, чтобы сохранить сверку', 3500); return; }
   const artem = parseMoneyInput(document.getElementById('balArtem').value);
   const oksana = parseMoneyInput(document.getElementById('balOksana').value);
   const cash = parseMoneyInput(document.getElementById('balCash').value);
