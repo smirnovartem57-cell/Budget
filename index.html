@@ -5712,12 +5712,21 @@ async function deleteRecurringGroup(groupId) {
 async function updateRecurringGroupDate(groupId, newDateStr) {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
   if (!newDateStr) { toast('Укажите дату'); await loadAll(); return; }
-  const newDay = new Date(newDateStr + 'T00:00:00').getDate();
   const groupTxs = state.transactions.filter(t => t.recurring_group_id === groupId);
+  if (!groupTxs.length) { await loadAll(); return; }
+  // Опорная (самая ранняя) дата серии. Новую дату применяем как сдвиг всего ряда:
+  // и по месяцу (чтобы можно было поправить месяц, напр. август→июль), и по дню.
+  const minDate = groupTxs.reduce((m, t) => (t.date < m ? t.date : m), groupTxs[0].date);
+  const base = new Date(minDate + 'T00:00:00');
+  const target = new Date(newDateStr + 'T00:00:00');
+  const monthDelta = (target.getFullYear() - base.getFullYear()) * 12 + (target.getMonth() - base.getMonth());
+  const newDay = target.getDate();
   for (const t of groupTxs) {
     const d = new Date(t.date + 'T00:00:00');
+    d.setDate(1);                              // избегаем перескока месяца при setMonth
+    d.setMonth(d.getMonth() + monthDelta);      // сдвигаем месяц/год всего ряда
     const lastDayOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-    d.setDate(Math.min(newDay, lastDayOfMonth));
+    d.setDate(Math.min(newDay, lastDayOfMonth)); // день как выбрано, с зажимом по длине месяца
     const updatedDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const { error } = await supabaseClient.from('transactions').update({ date: updatedDate }).eq('id', t.id);
     if (error) { toast('Ошибка: ' + error.message); return; }
