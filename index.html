@@ -612,6 +612,77 @@
   .hero-how { background: none; border: none; color: rgba(255,255,255,0.92); font-size: 12.5px; font-weight: 600; text-decoration: underline; cursor: pointer; padding: 6px 0 0; margin-top: 2px; }
   .sparkline-box { position: relative; height: 28px; margin-top: 8px; }
 
+  /* ============ РЕАЛЬНЫЙ ОСТАТОК СЕМЬИ (ТЗ 2026-07-24) ============ */
+  .rb-icon-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .rb-icon { width: 30px; height: 30px; object-fit: contain; display: block; flex: 0 0 auto; }
+  .real-balance-card .label { margin-bottom: 0; color: #fff; font-size: 15px; }
+  .rb-amount { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 32px; color: #fff;
+    white-space: nowrap; font-variant-numeric: tabular-nums; margin-top: 12px; line-height: 1.1; }
+  .rb-status { display: flex; align-items: center; gap: 7px; margin-top: 8px; font-size: 13px; color: rgba(255,255,255,0.9); }
+  .rb-status-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; background: #fff; }
+  .rb-status.rb-fresh .rb-status-dot { background: #7BE3A3; }
+  .rb-status.rb-mid   .rb-status-dot { background: #FFC470; }
+  .rb-status.rb-old   .rb-status-dot { background: #FFB35C; }
+  .rb-status.rb-old   .rb-status-text { color: #FFE0B8; font-weight: 600; }
+  .rb-substatus { font-size: 13px; color: rgba(255,255,255,0.78); margin-top: 4px; }
+  .rb-update-btn { margin-top: 14px; width: 100%; min-height: 44px; border: none; border-radius: 12px;
+    background: rgba(255,255,255,0.95); color: #34509E; font-weight: 700; font-size: 15px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .rb-update-btn:active { background: #fff; }
+  .rb-update-btn.rb-update-warn { background: #FFB35C; color: #5A3410; }
+  .rb-details-toggle { background: none; border: none; color: rgba(255,255,255,0.92); font-size: 12.5px;
+    font-weight: 600; text-decoration: underline; cursor: pointer; padding: 10px 0 0; }
+  .rb-details { margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.22); padding-top: 10px; }
+  .rb-break-row { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px;
+    color: rgba(255,255,255,0.92); padding: 3px 0; font-variant-numeric: tabular-nums; }
+  .rb-break-row.rb-break-total { font-weight: 700; border-top: 1px solid rgba(255,255,255,0.22); margin-top: 4px; padding-top: 7px; }
+  .rb-break-row .rb-neg { color: #FFC9C9; }
+  .rb-ref { font-size: 12px; color: rgba(255,255,255,0.72); margin-top: 10px; line-height: 1.5; }
+  .rb-history-link { background: none; border: none; color: rgba(255,255,255,0.92); font-size: 12.5px;
+    font-weight: 600; text-decoration: underline; cursor: pointer; padding: 10px 0 0; display: block; }
+
+  /* Пустое состояние (первый запуск) */
+  .rb-empty-title { color: #fff; font-size: 16px; font-weight: 700; margin-top: 10px; }
+  .rb-empty-desc { color: rgba(255,255,255,0.85); font-size: 13.5px; line-height: 1.45; margin-top: 8px; }
+
+  /* Skeleton загрузки */
+  .rb-skel { border-radius: 8px; background: linear-gradient(90deg, rgba(255,255,255,0.18) 25%, rgba(255,255,255,0.32) 37%, rgba(255,255,255,0.18) 63%);
+    background-size: 400% 100%; animation: rbShimmer 1.3s ease infinite; }
+  .rb-skel-amount { height: 34px; width: 60%; margin-top: 12px; }
+  .rb-skel-line { height: 13px; width: 45%; margin-top: 12px; }
+  @keyframes rbShimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
+  /* Ошибка загрузки */
+  .rb-error-text { color: #fff; font-size: 14.5px; font-weight: 600; margin-top: 10px; }
+
+  /* Справочное расхождение (вне карточки) */
+  .discrepancy-note { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; margin-top: 12px; box-shadow: 0 1px 2px rgba(16,24,40,0.04); }
+  .discrepancy-note .dn-text { font-size: 13.5px; color: var(--text-primary); line-height: 1.5; }
+  .discrepancy-note .dn-hint { font-size: 12.5px; color: var(--text-secondary); margin-top: 6px; }
+  .discrepancy-note .dn-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .discrepancy-note .dn-btn { min-height: 40px; padding: 0 14px; border-radius: 10px; font-weight: 600; font-size: 13.5px; cursor: pointer; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-primary); }
+  .discrepancy-note .dn-btn.dn-primary { background: var(--btn-primary); border-color: var(--btn-primary); color: #fff; }
+
+  /* Форма сверки — предпросмотр расчёта */
+  .rb-form-preview { background: var(--info-bg); border-radius: 12px; padding: 12px 14px; margin: 6px 0 16px; }
+  .rb-form-preview .rb-break-row { color: var(--text-primary); }
+  .rb-form-preview .rb-break-row.rb-break-total { border-top-color: var(--border); }
+  .rb-form-preview .rb-neg { color: var(--expense-accent); }
+  .rb-field-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+  /* История остатков */
+  .rb-hist-item { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .rb-hist-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .rb-hist-date { font-size: 13px; color: var(--text-secondary); }
+  .rb-hist-net { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 19px; font-variant-numeric: tabular-nums; }
+  .rb-hist-sub { font-size: 12.5px; color: var(--text-secondary); margin-top: 6px; line-height: 1.5; }
+  .rb-hist-change { font-size: 12.5px; font-weight: 600; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .rb-hist-change.up { color: var(--income-accent); }
+  .rb-hist-change.down { color: var(--expense-accent); }
+  .rb-hist-change.flat { color: var(--text-muted); }
+  .rb-hist-chart-box { position: relative; height: 180px; margin-bottom: 16px; }
+
   /* main grid */
   .main-grid {
     display: grid;
@@ -1640,19 +1711,20 @@
        порядок блоков остаётся мобильным; на десктопе визуальные колонки задаёт grid-column. -->
   <div class="home-grid">
   <div class="home-col home-col-left">
-  <!-- A3 (2026-07-17): hero-остаток + фраза-прогноз + компактный ряд из 3 метрик -->
+  <!-- Реальный остаток семьи (ТЗ 2026-07-24): главный показатель — последняя ручная сверка. -->
   <div class="summary-grid">
-    <div class="summary-card balance hero">
+    <div class="summary-card balance hero real-balance-card" id="realBalanceCard">
       <div class="hero-top-row">
-        <div class="label" id="labelBalancePeriod">Общий баланс семьи</div>
+        <div class="rb-icon-title">
+          <img class="rb-icon" src="icons/balance.png" alt="" decoding="async" id="realBalanceIcon">
+          <div class="label" id="realBalanceTitle">Реальный остаток семьи</div>
+        </div>
         <button type="button" class="hero-eye-btn" id="amountsEyeBtn" title="Скрыть/показать суммы" aria-label="Скрыть/показать суммы"><i data-lucide="eye"></i></button>
       </div>
-      <div class="value kpi-clickable" id="balanceMonth" data-kpi="balance" role="button" tabindex="0" title="Как это посчитано?">—</div>
-      <div class="growth-indicator" id="growthBalance"></div>
-      <div class="hero-forecast" id="heroForecast"></div>
-      <div class="sparkline-box"><canvas id="sparkBalance"></canvas></div>
-      <button type="button" class="hero-how" data-kpi="balance">Как посчитано</button>
+      <div id="realBalanceBody"><!-- renderRealBalance() --></div>
     </div>
+    <!-- Справочное расхождение между операциями и остатками (ТЗ §8) — вне карточки, ниже. -->
+    <div class="discrepancy-note" id="discrepancyNote" style="display:none;"></div>
   </div>
   <!-- §6.4: две крупные карточки Доход / Расход -->
   <div class="io-cards">
@@ -2426,6 +2498,66 @@
   </div>
 </div>
 
+<!-- Сверка реального остатка семьи (ТЗ 2026-07-24) -->
+<div class="bottom-sheet-overlay bottom-sheet-modal" id="balanceSheetOverlay">
+  <div class="bottom-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <button type="button" class="bottom-sheet-close" id="balanceSheetCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
+    <div class="panel">
+      <h2>Обновить реальный остаток</h2>
+      <p class="rb-field-hint" style="margin:-4px 0 14px;">Укажите, сколько денег сейчас находится на всех основных картах и наличными.</p>
+
+      <div class="form-row">
+        <label>Артём — всего на картах</label>
+        <input type="text" id="balArtem" class="rb-money-input" inputmode="numeric" placeholder="0" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <label>Оксана — всего на картах</label>
+        <input type="text" id="balOksana" class="rb-money-input" inputmode="numeric" placeholder="0" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <label>Наличные</label>
+        <input type="text" id="balCash" class="rb-money-input" inputmode="numeric" placeholder="0" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <label>Другие деньги</label>
+        <input type="text" id="balOther" class="rb-money-input" inputmode="numeric" placeholder="0" autocomplete="off">
+        <div class="rb-field-hint">Например, электронные кошельки или отдельный общий счёт.</div>
+      </div>
+      <div class="form-row">
+        <label>Долг по кредитным картам</label>
+        <input type="text" id="balCreditDebt" class="rb-money-input" inputmode="numeric" placeholder="0" autocomplete="off">
+        <div class="rb-field-hint">Укажите текущую задолженность, а не доступный кредитный лимит.</div>
+      </div>
+      <div class="form-row">
+        <label>Комментарий (необязательно)</label>
+        <input type="text" id="balComment" placeholder="Например: после зарплаты" autocomplete="off">
+      </div>
+
+      <div class="rb-form-preview">
+        <div class="rb-break-row"><span>Собственные деньги</span><span id="balPrevOwn">0 ₽</span></div>
+        <div class="rb-break-row"><span>Долги</span><span class="rb-neg" id="balPrevDebt">0 ₽</span></div>
+        <div class="rb-break-row rb-break-total"><span>Чистый остаток</span><span id="balPrevNet">0 ₽</span></div>
+      </div>
+
+      <button type="button" class="btn-primary" id="balanceSaveBtn">Сохранить сверку</button>
+    </div>
+  </div>
+</div>
+
+<!-- История реальных остатков (ТЗ §6) -->
+<div class="bottom-sheet-overlay bottom-sheet-modal" id="balanceHistoryOverlay">
+  <div class="bottom-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <button type="button" class="bottom-sheet-close" id="balanceHistoryCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
+    <div class="panel">
+      <h2>История остатков</h2>
+      <div class="rb-hist-chart-box" id="balanceHistChartBox" style="display:none;"><canvas id="balanceHistChart"></canvas></div>
+      <div id="balanceHistList"></div>
+    </div>
+  </div>
+</div>
+
 <!-- 2026-07-19: детали и редактирование операции в bottom sheet (ТЗ §6.7/§6.8) -->
 <div class="bottom-sheet-overlay bottom-sheet-modal" id="txDetailOverlay">
   <div class="bottom-sheet">
@@ -2566,7 +2698,14 @@ let state = {
   subscriptionsSort: { key: null, dir: 'asc' }, // key: 'name' | 'amount' | 'date'
   categoryRankingExpanded: { income: false, expense: false },
   dynamicsMonthsN: 6,  // 6 | 12 — default 6 so 12 bars don't crowd on phones (2026-07-15)
+  balanceSnapshots: [],       // ручные сверки реального остатка семьи (ТЗ 2026-07-24)
+  balanceLoaded: false,       // сверки хотя бы раз успешно загружены (иначе — skeleton)
+  balanceLoadError: false,    // не удалось загрузить сверки — показать ошибку в карточке
+  discrepancyDismissed: false,// пользователь закрыл справку о расхождении
 };
+
+// Порог показа справочного расхождения между операциями и остатками (ТЗ §8). Меньше — не показываем.
+const BALANCE_DISCREPANCY_THRESHOLD = 500;
 
 let currentUser = null;
 let categoryManuallySet = false;
@@ -3314,6 +3453,7 @@ async function loadAll() {
     const rulesQuery = supabaseClient.from('category_rules').select('*').eq('is_active', true);
     const subsQuery = supabaseClient.from('subscriptions').select('*').order('next_billing_date', { ascending: true });
     const debtPayQuery = supabaseClient.from('debt_payments').select('*').order('date', { ascending: true });
+    const snapQuery = supabaseClient.from('balance_snapshots').select('*').order('created_at', { ascending: false });
     if (currentUser) {
       txQuery.eq('user_id', currentUser.id);
       debtQuery.eq('user_id', currentUser.id);
@@ -3323,6 +3463,7 @@ async function loadAll() {
       rulesQuery.eq('user_id', currentUser.id);
       subsQuery.eq('user_id', currentUser.id);
       debtPayQuery.eq('user_id', currentUser.id);
+      snapQuery.eq('user_id', currentUser.id);
     } else {
       txQuery.is('user_id', null);
       debtQuery.is('user_id', null);
@@ -3332,9 +3473,10 @@ async function loadAll() {
       rulesQuery.is('user_id', null);
       subsQuery.is('user_id', null);
       debtPayQuery.is('user_id', null);
+      snapQuery.is('user_id', null);
     }
 
-    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }, { data: rules, error: rulesErr }, { data: subs, error: subsErr }, { data: dpays, error: dpErr }] = await withTimeout(Promise.all([
+    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }, { data: rules, error: rulesErr }, { data: subs, error: subsErr }, { data: dpays, error: dpErr }, { data: snaps, error: snapErr }] = await withTimeout(Promise.all([
       supabaseClient.from('categories').select('*').order('created_at'),
       txQuery,
       debtQuery,
@@ -3344,6 +3486,7 @@ async function loadAll() {
       rulesQuery,
       subsQuery,
       debtPayQuery,
+      snapQuery,
     ]), 15000, 'Сервер не отвечает — проверьте интернет-соединение');
     const loadErrors = [
       [catErr, 'категорий'], [txErr, 'операций'], [debtErr, 'долгов'],
@@ -3365,6 +3508,11 @@ async function loadAll() {
     state.categoryRules = rules || [];
     state.subscriptions = subs || [];
     state.debtPayments = dpays || [];
+    // Сверки остатка: ошибка их загрузки не блокирует остальное приложение (ТЗ §10) —
+    // фиксируем флаг, карточка остатка сама покажет состояние ошибки с кнопкой «Повторить».
+    state.balanceLoadError = !!snapErr;
+    state.balanceSnapshots = snaps || [];
+    if (!snapErr) state.balanceLoaded = true;
 
     if (!state.selectedMonth) {
       const now = new Date();
@@ -3546,7 +3694,6 @@ function setViewMode(mode) {
   document.getElementById('yearSelect').style.display = mode === 'year' ? '' : 'none';
   document.getElementById('labelIncomePeriod').textContent = mode === 'month' ? 'Доход за месяц' : 'Доход за год';
   document.getElementById('labelExpensePeriod').textContent = mode === 'month' ? 'Расход за месяц' : 'Расход за год';
-  document.getElementById('labelBalancePeriod').textContent = mode === 'month' ? 'Общий баланс семьи' : 'Общий баланс семьи';
   renderEverything();
 }
 
@@ -6386,6 +6533,329 @@ function setMonthGrowth(id, g) {
 // Null-safe KPI text setter so trimming KPI cards (A2) never throws on a removed id.
 function setKpi(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
 
+/* ============================================================================
+   РЕАЛЬНЫЙ ОСТАТОК СЕМЬИ — ручная сверка (ТЗ 2026-07-24)
+   Главный показатель главной = последний вручную подтверждённый net_balance.
+   Ежедневные расходы/доходы и остальная логика не затрагиваются.
+   ========================================================================== */
+
+// Ввод суммы → неотрицательное целое. Убираем пробелы, ₽ и любые нецифровые символы;
+// пустое поле = 0; минус и дробную часть не допускаем (ТЗ §11).
+function parseMoneyInput(str) {
+  if (str == null) return 0;
+  const cleaned = String(str).replace(/[^\d]/g, '');
+  const n = parseInt(cleaned, 10);
+  return isNaN(n) ? 0 : n;
+}
+function pluralDays(n) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return 'дней';
+  if (b === 1) return 'день';
+  if (b >= 2 && b <= 4) return 'дня';
+  return 'дней';
+}
+// Снимки уже приходят отсортированными по created_at desc; на всякий случай сортируем сами.
+function snapshotsDesc() {
+  return [...state.balanceSnapshots].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+}
+function latestSnapshot() {
+  const s = snapshotsDesc();
+  return s.length ? s[0] : null;
+}
+function snapDay(s) { return (s && s.created_at ? String(s.created_at) : '').slice(0, 10); }
+function daysSinceTs(ts) {
+  const then = new Date(ts), now = new Date();
+  // по календарным дням: обнуляем время, чтобы «сегодня» = 0 независимо от часа
+  const d0 = new Date(then.getFullYear(), then.getMonth(), then.getDate());
+  const n0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((n0 - d0) / 86400000);
+}
+function snapFreshnessLevel(days) {
+  if (days <= 3) return 'fresh';
+  if (days <= 7) return 'mid';
+  return 'old';
+}
+// Сумма операций заданного типа в диапазоне дат (afterExclusive, throughInclusive].
+function sumTxRange(kind, afterExclusive, throughInclusive) {
+  return state.transactions
+    .filter(t => t.kind === kind
+      && (!afterExclusive || t.date > afterExclusive)
+      && (!throughInclusive || t.date <= throughInclusive))
+    .reduce((s, t) => s + Number(t.amount || 0), 0);
+}
+
+// Главная карточка «Реальный остаток семьи» со всеми состояниями (ТЗ §2, §3, §9, §10).
+function renderRealBalance() {
+  const body = document.getElementById('realBalanceBody');
+  const titleEl = document.getElementById('realBalanceTitle');
+  if (!body) return;
+
+  // Состояние: ошибка загрузки (остальное приложение продолжает работать, ТЗ §10)
+  if (state.balanceLoadError) {
+    titleEl.textContent = 'Реальный остаток семьи';
+    body.innerHTML = `
+      <div class="rb-error-text">Не удалось загрузить остаток</div>
+      <button type="button" class="rb-update-btn" id="rbRetryBtn">Повторить</button>`;
+    document.getElementById('rbRetryBtn').addEventListener('click', () => loadAll());
+    return;
+  }
+  // Состояние: загрузка (skeleton вместо «0 ₽», ТЗ §10)
+  if (isConfigured && !state.balanceLoaded) {
+    titleEl.textContent = 'Реальный остаток семьи';
+    body.innerHTML = `<div class="rb-skel rb-skel-amount"></div><div class="rb-skel rb-skel-line"></div>`;
+    return;
+  }
+  // Состояние: первый запуск — сверок ещё нет (ТЗ §9). Не показываем «0 ₽».
+  const snap = latestSnapshot();
+  if (!snap) {
+    titleEl.textContent = 'Реальный остаток семьи';
+    body.innerHTML = `
+      <div class="rb-empty-title">Укажите реальный остаток</div>
+      <div class="rb-empty-desc">Добавьте примерную сумму на картах и наличными, чтобы видеть реальное финансовое состояние семьи.</div>
+      <button type="button" class="rb-update-btn" id="rbFirstBtn">Добавить первый остаток</button>`;
+    document.getElementById('rbFirstBtn').addEventListener('click', () => openBalanceSheet());
+    return;
+  }
+
+  // Нормальное состояние
+  const net = Number(snap.net_balance) || 0;
+  const own = Number(snap.total_own_money) || 0;
+  const debt = Number(snap.credit_debt_amount) || 0;
+  const days = daysSinceTs(snap.created_at);
+  const level = snapFreshnessLevel(days);
+  const timeStr = new Date(snap.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+  titleEl.textContent = level === 'old' ? 'Последний известный остаток' : 'Реальный остаток семьи';
+
+  let statusText, subStatus = '';
+  if (days <= 0) statusText = `Сверено сегодня в ${timeStr}`;
+  else if (level === 'old') { statusText = 'Остаток требует обновления'; subStatus = `Последняя сверка ${days} ${pluralDays(days)} назад`; }
+  else statusText = `Последняя сверка ${days} ${pluralDays(days)} назад`;
+
+  const btnLabel = level === 'old' ? 'Сверить остаток' : 'Обновить остаток';
+  const btnClass = level === 'old' ? 'rb-update-btn rb-update-warn' : 'rb-update-btn';
+
+  // «После последней сверки» — справочные суммы операций, внесённых позже (ТЗ §7).
+  const sinceExpense = sumTxRange('expense', snapDay(snap), null);
+  const sinceIncome = sumTxRange('income', snapDay(snap), null);
+
+  let html = `<div class="value rb-amount">${fmt.format(net)}</div>`;
+  html += `<div class="rb-status rb-${level}"><span class="rb-status-dot"></span><span class="rb-status-text">${escapeHtml(statusText)}</span></div>`;
+  if (level === 'old') html += `<div class="rb-substatus">${escapeHtml(subStatus)}. Данные от ${escapeHtml(formatDateHuman(snapDay(snap)))}</div>`;
+  html += `<button type="button" class="${btnClass}" id="rbUpdateBtn">${btnLabel}</button>`;
+
+  // Раскрываемая расшифровка: показываем разбивку по долгам только если долг есть (ТЗ §2).
+  const hasDetails = debt > 0 || sinceExpense > 0 || sinceIncome > 0;
+  if (hasDetails) {
+    html += `<button type="button" class="rb-details-toggle" id="rbDetailsToggle">Показать расшифровку</button>`;
+    html += `<div class="rb-details" id="rbDetails" style="display:none;">`;
+    if (debt > 0) {
+      html += `<div class="rb-break-row"><span>Деньги на счетах</span><span>${fmt.format(own)}</span></div>`;
+      html += `<div class="rb-break-row"><span>Долг по кредиткам</span><span class="rb-neg">−${fmt.format(debt).replace('−','')}</span></div>`;
+      html += `<div class="rb-break-row rb-break-total"><span>Чистый остаток</span><span>${fmt.format(net)}</span></div>`;
+    }
+    if (sinceExpense > 0 || sinceIncome > 0) {
+      html += `<div class="rb-ref">После последней сверки внесено:<br>расходов ${fmt.format(sinceExpense)}, доходов ${fmt.format(sinceIncome)}.<br>Это справочная информация, на остаток не влияет.</div>`;
+    }
+    html += `</div>`;
+  }
+  html += `<button type="button" class="rb-history-link" id="rbHistoryLink">История остатков →</button>`;
+
+  body.innerHTML = html;
+  document.getElementById('rbUpdateBtn').addEventListener('click', () => openBalanceSheet());
+  document.getElementById('rbHistoryLink').addEventListener('click', () => openBalanceHistory());
+  const dt = document.getElementById('rbDetailsToggle');
+  if (dt) dt.addEventListener('click', () => {
+    const d = document.getElementById('rbDetails');
+    const open = d.style.display === 'none';
+    d.style.display = open ? 'block' : 'none';
+    dt.textContent = open ? 'Скрыть расшифровку' : 'Показать расшифровку';
+  });
+}
+
+// Справочное расхождение между операциями и остатками (ТЗ §8). Не «ошибка», без агрессии.
+function renderDiscrepancyNote() {
+  const box = document.getElementById('discrepancyNote');
+  if (!box) return;
+  box.style.display = 'none';
+  if (state.discrepancyDismissed) return;
+  const snaps = snapshotsDesc();
+  if (snaps.length < 2) return;
+  const cur = snaps[0], prev = snaps[1];
+  const expectedChange = sumTxRange('income', snapDay(prev), snapDay(cur)) - sumTxRange('expense', snapDay(prev), snapDay(cur));
+  const actualChange = (Number(cur.net_balance) || 0) - (Number(prev.net_balance) || 0);
+  const difference = actualChange - expectedChange;
+  if (Math.abs(difference) < BALANCE_DISCREPANCY_THRESHOLD) return;
+
+  const dirWord = actualChange < 0 ? 'уменьшился' : 'увеличился';
+  const expenseSince = sumTxRange('expense', snapDay(prev), snapDay(cur));
+  box.innerHTML = `
+    <div class="dn-text">С прошлого обновления остаток ${dirWord} на ${fmt.format(Math.abs(actualChange))}.<br>
+      В приложение внесено расходов на ${fmt.format(expenseSince)}.<br>
+      Разница: ${fmt.format(Math.abs(difference))}.</div>
+    <div class="dn-hint">Возможно, часть операций ещё не внесена.</div>
+    <div class="dn-actions">
+      <button type="button" class="dn-btn dn-primary" id="dnCheckBtn">Проверить расходы</button>
+      <button type="button" class="dn-btn" id="dnCloseBtn">Закрыть</button>
+    </div>`;
+  box.style.display = '';
+  document.getElementById('dnCloseBtn').addEventListener('click', () => { state.discrepancyDismissed = true; box.style.display = 'none'; });
+  document.getElementById('dnCheckBtn').addEventListener('click', () => {
+    state.discrepancyDismissed = true; box.style.display = 'none';
+    switchPageTab('budget');
+    const tx = document.getElementById('txPanel');
+    if (tx) tx.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+/* ---- Форма сверки ---- */
+let balanceSaving = false;
+function openBalanceSheet() {
+  const snap = latestSnapshot();
+  // Предзаполняем из ПРЕДЫДУЩЕЙ ручной сверки (это данные пользователя, а не расчётный
+  // баланс — расчётный подставлять без подтверждения нельзя, ТЗ §16).
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ? String(v) : ''; };
+  set('balArtem', snap ? Math.round(Number(snap.artem_amount) || 0) : '');
+  set('balOksana', snap ? Math.round(Number(snap.oksana_amount) || 0) : '');
+  set('balCash', snap ? Math.round(Number(snap.cash_amount) || 0) : '');
+  set('balOther', snap ? Math.round(Number(snap.other_amount) || 0) : '');
+  set('balCreditDebt', snap ? Math.round(Number(snap.credit_debt_amount) || 0) : '');
+  document.getElementById('balComment').value = '';
+  updateBalancePreview();
+  document.getElementById('balanceSheetOverlay').classList.add('visible');
+}
+function closeBalanceSheet() { document.getElementById('balanceSheetOverlay').classList.remove('visible'); }
+function updateBalancePreview() {
+  const own = parseMoneyInput(document.getElementById('balArtem').value)
+    + parseMoneyInput(document.getElementById('balOksana').value)
+    + parseMoneyInput(document.getElementById('balCash').value)
+    + parseMoneyInput(document.getElementById('balOther').value);
+  const debt = parseMoneyInput(document.getElementById('balCreditDebt').value);
+  document.getElementById('balPrevOwn').textContent = fmt.format(own);
+  document.getElementById('balPrevDebt').textContent = debt ? ('−' + fmt.format(debt)) : '0 ₽';
+  document.getElementById('balPrevNet').textContent = fmt.format(own - debt);
+}
+async function saveBalanceSnapshot() {
+  if (balanceSaving) return;                       // защита от повторного нажатия (ТЗ §10)
+  if (!isConfigured) { toast('Подключите базу данных, чтобы сохранять сверки', 3500); return; }
+  const artem = parseMoneyInput(document.getElementById('balArtem').value);
+  const oksana = parseMoneyInput(document.getElementById('balOksana').value);
+  const cash = parseMoneyInput(document.getElementById('balCash').value);
+  const other = parseMoneyInput(document.getElementById('balOther').value);
+  const debt = parseMoneyInput(document.getElementById('balCreditDebt').value);
+  const comment = document.getElementById('balComment').value.trim();
+  const own = artem + oksana + cash + other;
+  const net = own - debt;
+
+  balanceSaving = true;
+  const btn = document.getElementById('balanceSaveBtn');
+  const prevLabel = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Сохранение…';
+
+  const { error } = await insertWithRetry('balance_snapshots', {
+    user_id: currentUser ? currentUser.id : null,
+    artem_amount: artem, oksana_amount: oksana, cash_amount: cash,
+    credit_debt_amount: debt, other_amount: other,
+    total_own_money: own, net_balance: net,
+    comment: comment || null,
+    created_by: currentUser ? (currentUser.email || currentUser.id) : null,
+  });
+
+  balanceSaving = false;
+  btn.disabled = false; btn.textContent = prevLabel;
+
+  if (error) {
+    // Не закрываем форму и не очищаем введённые значения (ТЗ §10).
+    toast('Не удалось сохранить сверку. Проверьте соединение и попробуйте снова.', 4500);
+    return;
+  }
+  state.discrepancyDismissed = false; // после новой сверки пересчитываем справку о расхождении
+  closeBalanceSheet();
+  toast('Остаток обновлён');
+  await loadAll(); // перечитываем снимки и перерисовываем главную
+}
+
+/* ---- История остатков ---- */
+let balanceHistChart = null;
+function openBalanceHistory() {
+  renderBalanceHistory();
+  document.getElementById('balanceHistoryOverlay').classList.add('visible');
+}
+function closeBalanceHistory() { document.getElementById('balanceHistoryOverlay').classList.remove('visible'); }
+function renderBalanceHistory() {
+  const list = document.getElementById('balanceHistList');
+  const snaps = snapshotsDesc();
+  if (!snaps.length) { list.innerHTML = `<div class="empty-note">Сверок пока нет</div>`; return; }
+
+  list.innerHTML = snaps.map((s, i) => {
+    const net = Number(s.net_balance) || 0;
+    const own = Number(s.total_own_money) || 0;
+    const debt = Number(s.credit_debt_amount) || 0;
+    const d = new Date(s.created_at);
+    const dateStr = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+    const timeStr = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    let changeHtml = '';
+    const prev = snaps[i + 1];
+    if (prev) {
+      const diff = net - (Number(prev.net_balance) || 0);
+      const cls = diff > 0 ? 'up' : (diff < 0 ? 'down' : 'flat');
+      const sign = diff > 0 ? '+' : (diff < 0 ? '−' : '');
+      const prevDate = new Date(prev.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+      changeHtml = `<div class="rb-hist-change ${cls}">${sign}${fmt.format(Math.abs(diff)).replace('−','')} с ${prevDate}</div>`;
+    }
+    const who = s.created_by ? ` · ${escapeHtml(String(s.created_by).split('@')[0])}` : '';
+    return `
+      <div class="rb-hist-item">
+        <div class="rb-hist-top">
+          <span class="rb-hist-date">${dateStr}, ${timeStr}${who}</span>
+          <span class="rb-hist-net">${fmt.format(net)}</span>
+        </div>
+        <div class="rb-hist-sub">Деньги: ${fmt.format(own)}${debt > 0 ? ` · Долги: ${fmt.format(debt)}` : ''}</div>
+        ${changeHtml}
+      </div>`;
+  }).join('');
+
+  renderBalanceHistoryChart(snaps);
+}
+function renderBalanceHistoryChart(snaps) {
+  const box = document.getElementById('balanceHistChartBox');
+  const canvas = document.getElementById('balanceHistChart');
+  if (!box || !canvas || typeof Chart === 'undefined') return;
+  // Нужно минимум 2 реальные точки; прогнозные значения между ними не дорисовываем (ТЗ §6).
+  const pts = [...snaps].reverse(); // по возрастанию даты
+  if (pts.length < 2) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  const labels = pts.map(s => new Date(s.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
+  const data = pts.map(s => Number(s.net_balance) || 0);
+  if (balanceHistChart) balanceHistChart.destroy();
+  balanceHistChart = new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets: [{ data, borderColor: '#4F7DF3', backgroundColor: 'rgba(79,125,243,0.12)',
+      borderWidth: 2, fill: true, tension: 0.25, pointRadius: 4, pointBackgroundColor: '#4F7DF3' }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: {
+        title: items => items[0].label,
+        label: item => fmt.format(item.parsed.y) } } },
+      scales: { y: { ticks: { callback: v => fmt.format(v) } } },
+    },
+  });
+}
+
+// Слушатели формы/истории — навешиваются один раз при инициализации.
+(function initBalanceListeners() {
+  ['balArtem', 'balOksana', 'balCash', 'balOther', 'balCreditDebt'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateBalancePreview);
+  });
+  const saveBtn = document.getElementById('balanceSaveBtn');
+  if (saveBtn) saveBtn.addEventListener('click', saveBalanceSnapshot);
+  const cs = document.getElementById('balanceSheetCloseBtn'); if (cs) cs.addEventListener('click', closeBalanceSheet);
+  const ov = document.getElementById('balanceSheetOverlay'); if (ov) ov.addEventListener('click', e => { if (e.target.id === 'balanceSheetOverlay') closeBalanceSheet(); });
+  const hc = document.getElementById('balanceHistoryCloseBtn'); if (hc) hc.addEventListener('click', closeBalanceHistory);
+  const hov = document.getElementById('balanceHistoryOverlay'); if (hov) hov.addEventListener('click', e => { if (e.target.id === 'balanceHistoryOverlay') closeBalanceHistory(); });
+})();
+
 function renderSummary() {
   const curMonths = activeMonths();
   const prevMonths = previousPeriodMonths();
@@ -6397,36 +6867,11 @@ function renderSummary() {
 
   setKpi('sumIncomeMonth', fmt.format(incomePeriod));
   setKpi('sumExpenseMonth', fmt.format(expensePeriod));
-  setKpi('balanceMonth', fmt.format(incomePeriod - expensePeriod));
   setKpi('debtsMonthTotal', fmt.format(computeUnpaidDebtsTotal()));
   const unpaidDebtsCount = state.debts.filter(d => !d.is_paid).length;
   setKpi('debtsMonthCount', unpaidDebtsCount ? `${unpaidDebtsCount} ${pluralDolg(unpaidDebtsCount)}` : '');
-
-  // A3: шаблонная фраза-прогноз (считается кодом), только для текущего месяца.
-  const heroForecast = document.getElementById('heroForecast');
-  if (heroForecast) {
-    if (state.viewMode === 'month' && isCurrentMonthActive()) {
-      const obligatory = computeObligatoryRemaining();
-      const free = Math.max(0, (incomePeriod - expensePeriod) - obligatory);
-      heroForecast.textContent = obligatory > 0
-        ? `До конца месяца обязательных платежей на ${fmt.format(obligatory)}, свободно примерно ${fmt.format(free)}`
-        : 'Обязательных платежей до конца месяца больше нет';
-      heroForecast.style.display = '';
-    } else {
-      heroForecast.textContent = '';
-      heroForecast.style.display = 'none';
-    }
-  }
-
-  const gBalance = formatGrowth(incomePeriod - expensePeriod, incomePrev - expensePrev);
-  setMonthGrowth('growthBalance', gBalance);
-
-  // hero-остаток показывает баланс месяца; спарклайн — динамика баланса за 6 мес (A3)
-  const sparkMonths = lastNMonthKeys(todayStr().slice(0, 7), 6);
-  const incomeSeries = sparkMonths.map(k => sumForMonths([k], 'income'));
-  const expenseSeries = sparkMonths.map(k => sumForMonths([k], 'expense'));
-  const balanceSeries = incomeSeries.map((v, i) => v - expenseSeries[i]);
-  renderSparkline('sparkBalance', balanceSeries, 'rgba(255,255,255,0.9)');
+  // Главный показатель остатка вынесен в карточку «Реальный остаток семьи» (renderRealBalance).
+  // Рассчитанный баланс (доход − расход) больше не является главным на главной (ТЗ §2/§15).
 }
 
 // Obligatory outflows still due this month = active recurring expenses not yet paid this
@@ -7251,6 +7696,8 @@ function renderEverything() {
   populateCategorySelect();
   populateIncomeCategorySelect();
   renderSummary();
+  renderRealBalance();
+  renderDiscrepancyNote();
   initAiSummaryPanel();
   renderTable();
   renderRecentTransactions();
