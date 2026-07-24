@@ -6582,11 +6582,14 @@ const CATEGORY_ICON_MAP = Object.freeze({
   'Клиенты': CATEGORY_ICON_BASE + '/income/24_additional_income.png',
   'Гонорар': CATEGORY_ICON_BASE + '/income/24_additional_income.png',
 });
+// Версия набора иконок — часть URL для cache-busting при замене файлов под теми же путями.
+const CATEGORY_ICON_VERSION = '2';
 // operationType: 'expense' | 'income'. Возвращает путь к PNG по стабильному ключу категории.
 function getCategoryIcon(category, operationType = 'expense') {
   const key = String(category || '').trim();
-  if (CATEGORY_ICON_MAP[key]) return CATEGORY_ICON_MAP[key];
-  return operationType === 'income' ? CATEGORY_ICON_FALLBACK.income : CATEGORY_ICON_FALLBACK.expense;
+  const base = CATEGORY_ICON_MAP[key]
+    || (operationType === 'income' ? CATEGORY_ICON_FALLBACK.income : CATEGORY_ICON_FALLBACK.expense);
+  return `${base}?v=${CATEGORY_ICON_VERSION}`;
 }
 // Готовый <img> категории для вставки в разметку (единый вид на всех экранах).
 function categoryIconImg(category, operationType, sizeClass = 'ci-row') {
