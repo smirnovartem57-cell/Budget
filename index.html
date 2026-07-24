@@ -461,31 +461,26 @@
     padding: 28px 20px 60px;
   }
 
-  /* §IA (2026-07-24): дашборд главной. Обёртки-колонки прозрачны на мобильном (<900px — одна
-     колонка, порядок блоков = мобильный, без изменений). 900–1099px — две колонки (центр —
-     главный и самый широкий, справа-сверху баланс). ≥1100px — три колонки. Одна семантическая
-     разметка, без дублирования. */
+  /* §IA (2026-07-24, ред. «главная вокруг остатка»): дашборд главной. Обёртки-колонки прозрачны
+     на мобильном (<900px — одна колонка, порядок блоков в исходном HTML = мобильный порядок,
+     без JS). 900–1099px — две колонки. ≥1100px — три колонки. Одна семантическая разметка, без
+     дублирования. .home-col-center-lower — вторая, «нижняя» часть той же визуальной центральной
+     колонки (полная таблица операций и аналитика) — в исходном HTML идёт ПОСЛЕ home-col-right,
+     чтобы на мобильном «Этот месяц»/«Последние операции» оказались выше «Платежей»/«Покупок», а
+     тяжёлые таблицы — в самом низу; на планшете/десктопе CSS Grid возвращает её в тот же столбец
+     вторым рядом. */
   .home-col { display: contents; }
 
   /* Общие правила дашборда (планшет + десктоп): информационная иерархия. */
   @media (min-width: 900px) {
-    /* Доход / Расход — показатели второго уровня: компактнее hero-баланса */
-    .home-col-left .io-card { padding: 11px 13px; }
-    .home-col-left .io-value { font-size: 18px; }
-    .home-col-left .io-label { font-size: 12px; margin-bottom: 2px; }
-    /* правая колонка не дублирует центр: «Последние операции» и тизер аналитики скрыты
-       (Операции живут в центре, подробная аналитика — на вкладке «Аналитика») */
-    .home-col-right #recentTxPanel,
+    /* «Аналитика месяца»-тизер и ИИ-сводка не дублируют центр/аналитику на дашборде. */
     .home-col-right #analyticsTeaser,
     .home-col-right #aiSummaryPanel { display: none; }
-    /* компактные быстрые действия внизу левой колонки (ТЗ: левая колонка) */
-    .home-col-left .quick-actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-    .home-col-left .quick-action-card { padding: 12px 10px; }
-    .home-col-left .quick-action-sub { display: none; }
   }
 
-  /* Планшет: две колонки. Центр (Операции + категории + сравнение) — главный и широкий;
-     узкий сайдбар справа: сверху баланс/доход/расход/долги, снизу платежи/подписки/покупки. */
+  /* Планшет: две колонки. Центр (месяц/операции сверху, аналитика/таблица операций снизу) —
+     главный и широкий; узкий сайдбар справа: сверху остаток/действия/долги, снизу платежи/
+     покупки/подписки/сверка. */
   @media (min-width: 900px) and (max-width: 1099px) {
     .container { max-width: 1040px; }
     .home-grid {
@@ -495,14 +490,16 @@
       align-items: start;
     }
     .home-col { display: block; }
-    .home-col-center { grid-column: 1; grid-row: 1 / span 2; }
-    .home-col-left   { grid-column: 2; grid-row: 1; }
-    .home-col-right  { grid-column: 2; grid-row: 2; }
-    .home-col-center .main-grid { grid-template-columns: 1fr; }
+    .home-col-center       { grid-column: 1; grid-row: 1; }
+    .home-col-center-lower { grid-column: 1; grid-row: 2; }
+    .home-col-left  { grid-column: 2; grid-row: 1; }
+    .home-col-right { grid-column: 2; grid-row: 2; }
+    .home-col-center-lower .main-grid { grid-template-columns: 1fr; }
     .home-col > .panel, .home-col > .summary-grid, .home-col > .io-cards { margin-bottom: 20px; }
   }
 
-  /* Десктоп: три колонки. */
+  /* Десктоп: три колонки (ТЗ §16 — левая ≈30%: остаток/действия/долги; центральная ≈40%: месяц/
+     операции/аналитика; правая ≈30%: платежи/покупки/подписки/сверка). */
   @media (min-width: 1100px) {
     .container { max-width: 1240px; }
     .home-grid {
@@ -512,13 +509,14 @@
       align-items: start;
       justify-content: center;
     }
-    /* grid-row: 1 на всех — иначе sparse-автоплейсмент уводит центральную колонку во 2-й ряд */
+    /* grid-row задан явно на всех — иначе sparse-автоплейсмент уводит центральную колонку не туда */
     .home-col { display: block; grid-row: 1; }
     .home-col-left   { grid-column: 1; }
     .home-col-center { grid-column: 2; }  /* центральная колонка — визуально главная */
     .home-col-right  { grid-column: 3; }
+    .home-col-center-lower { grid-column: 2; grid-row: 2; }
     /* в узкой центральной колонке «Новая операция» встаёт над таблицей «Операции» */
-    .home-col-center .main-grid { grid-template-columns: 1fr; }
+    .home-col-center-lower .main-grid { grid-template-columns: 1fr; }
     /* секции не растягиваем на весь монитор — ширину держит сетка колонок */
     .home-col > .panel, .home-col > .summary-grid, .home-col > .io-cards { margin-bottom: 20px; }
   }
@@ -655,14 +653,43 @@
   /* Ошибка загрузки */
   .rb-error-text { color: #fff; font-size: 14.5px; font-weight: 600; margin-top: 10px; }
 
-  /* Справочное расхождение (вне карточки) */
-  .discrepancy-note { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px;
-    padding: 14px 16px; margin-top: 12px; box-shadow: 0 1px 2px rgba(16,24,40,0.04); }
+  /* Справочное расхождение — теперь отдельная панель «Сверка операций» (ТЗ 2026-07-24: главная
+     вокруг остатка, §14) — третий уровень значимости, ниже основных финансовых блоков. */
+  .discrepancy-note { }
   .discrepancy-note .dn-text { font-size: 13.5px; color: var(--text-primary); line-height: 1.5; }
   .discrepancy-note .dn-hint { font-size: 12.5px; color: var(--text-secondary); margin-top: 6px; }
   .discrepancy-note .dn-actions { display: flex; gap: 8px; margin-top: 12px; }
   .discrepancy-note .dn-btn { min-height: 40px; padding: 0 14px; border-radius: 10px; font-weight: 600; font-size: 13.5px; cursor: pointer; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-primary); }
   .discrepancy-note .dn-btn.dn-primary { background: var(--btn-primary); border-color: var(--btn-primary); color: #fff; }
+
+  /* ===================== ГЛАВНАЯ ВОКРУГ ОСТАТКА (ТЗ 2026-07-24) ===================== */
+  /* «Этот месяц» — компактный блок фактических расходов/доходов + текстовое сравнение. */
+  .month-summary-panel h2 { margin-bottom: 12px; }
+  .month-compare-note { font-size: 12.5px; color: var(--text-secondary); margin-top: 10px; line-height: 1.4; }
+  .month-compare-note .mc-up { color: var(--expense-accent); font-weight: 600; }
+  .month-compare-note .mc-down { color: var(--income-accent); font-weight: 600; }
+
+  /* «Ближайшие платежи» — компактный список из максимум 3 позиций. */
+  .upcoming-pay-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .upcoming-pay-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .upcoming-pay-row:first-child { padding-top: 0; }
+  .upcoming-pay-name { font-size: 13.5px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .upcoming-pay-date { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .upcoming-pay-amount { font-family: 'Manrope', sans-serif; font-weight: 700; font-size: 14px; color: var(--warning); white-space: nowrap; margin-left: auto; font-variant-numeric: tabular-nums; }
+
+  /* «Покупки»/«Подписки» — общий компактный шаблон второстепенных функциональных блоков. */
+  .compact-feature-panel h2 { margin-bottom: 10px; }
+  .cfp-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 3px 0; }
+  .cfp-row .cfp-label { font-size: 12.5px; color: var(--text-secondary); }
+  .cfp-row .cfp-value { font-size: 13.5px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; text-align: right; }
+  .compact-detail-btn { width: 100%; margin-top: 12px; min-height: 40px; }
+
+  /* «Долги» — компактная сводка (кнопка-строка + count/«Подробнее» под ней). */
+  .debts-compact-panel { margin-bottom: 22px; }
+  .debts-compact-panel .debts-row { margin-bottom: 0; }
+  .debts-compact-footer { display: flex; align-items: center; justify-content: space-between; padding: 8px 2px 0; }
+  .debts-compact-count { font-size: 12.5px; color: var(--text-secondary); }
+  .debts-detail-link { background: none; border: none; color: var(--btn-primary); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 6px 2px; min-height: 44px; }
 
   /* Форма сверки — предпросмотр расчёта */
   .rb-form-preview { background: var(--info-bg); border-radius: 12px; padding: 12px 14px; margin: 6px 0 16px; }
@@ -1466,38 +1493,33 @@
     .voice-status-bar { bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)); }
   }
 
-  /* ===================== QUICK ACTIONS (mobile) ===================== */
-  .quick-actions-grid { display: none; }
-  @media (max-width: 767px) {
-    .quick-actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-  }
-  .quick-action-card {
-    display: flex; align-items: center; gap: 12px;
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+  /* ===================== БЫСТРЫЕ ДЕЙСТВИЯ v2 (ТЗ 2026-07-24: главная вокруг остатка) =====================
+     Одна широкая кнопка «Добавить расход» (первое, самое заметное действие) + компактный ряд из
+     3 дополнительных действий. Видимо на всех ширинах (раньше .quick-actions-grid пропадала на
+     768–899px из-за display:none-по-умолчанию + мобильного only-медиа-запроса — здесь такого разрыва нет). */
+  .quick-actions-v2 { margin-bottom: 20px; }
+  .qa-primary {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; min-height: 52px;
+    background: var(--expense-accent); color: #fff; border: none;
+    border-radius: var(--radius); font-family: 'Inter', sans-serif;
+    font-size: 15px; font-weight: 700; cursor: pointer;
     box-shadow: var(--shadow-card);
-    padding: 16px;
-    min-height: 44px;
-    text-align: left;
-    cursor: pointer;
-    font-family: 'Inter', sans-serif;
   }
-  .quick-action-icon {
-    width: 40px; height: 40px; flex-shrink: 0;
-    border-radius: var(--radius-sm);
-    background: var(--info-bg); color: var(--btn-primary);
-    display: flex; align-items: center; justify-content: center;
+  .qa-primary svg { width: 20px; height: 20px; }
+  .qa-secondary-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+  .qa-secondary {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    min-height: 44px; padding: 10px 4px;
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-soft); cursor: pointer; font-family: 'Inter', sans-serif;
   }
-  .quick-action-icon svg { width: 20px; height: 20px; }
-  .quick-action-title { font-size: 13.5px; font-weight: 700; color: var(--text-primary); }
-  .quick-action-sub { font-size: 11.5px; color: var(--text-secondary); margin-top: 1px; }
-  /* At ≤390px the icon + title are enough — drop the subtitle so both quick-action
-     cards stay short and equal height. 2026-07-15 */
-  @media (max-width: 390px) {
-    .quick-action-sub { display: none; }
-    .quick-action-card { min-height: 60px; align-items: center; }
-  }
+  .qa-sec-icon { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; }
+  .qa-sec-icon svg { width: 16px; height: 16px; }
+  .qa-sec-income  { background: var(--income-bg);  color: var(--income-accent); }
+  .qa-sec-debt    { background: var(--warning-bg); color: var(--warning); }
+  .qa-sec-purchase{ background: var(--info-bg);    color: var(--btn-primary); }
+  .qa-secondary span:last-child { font-size: 11.5px; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
 
   /* ===================== BOTTOM SHEET (mobile form container) ===================== */
   .bottom-sheet-overlay { }
@@ -1714,7 +1736,7 @@
        порядок блоков остаётся мобильным; на десктопе визуальные колонки задаёт grid-column. -->
   <div class="home-grid">
   <div class="home-col home-col-left">
-  <!-- Реальный остаток семьи (ТЗ 2026-07-24): главный показатель — последняя ручная сверка. -->
+  <!-- Реальный остаток семьи (ТЗ 2026-07-24): главный показатель, самый заметный блок страницы. -->
   <div class="summary-grid">
     <div class="summary-card balance hero real-balance-card" id="realBalanceCard">
       <div class="hero-top-row">
@@ -1726,40 +1748,107 @@
       </div>
       <div id="realBalanceBody"><!-- renderRealBalance() --></div>
     </div>
-    <!-- Справочное расхождение между операциями и остатками (ТЗ §8) — вне карточки, ниже. -->
-    <div class="discrepancy-note" id="discrepancyNote" style="display:none;"></div>
   </div>
-  <!-- §6.4: две крупные карточки Доход / Расход -->
-  <div class="io-cards">
-    <button type="button" class="io-card io-income kpi-clickable" data-kpi="income" title="Как это посчитано?" aria-label="Доход за период, показать расшифровку">
-      <div class="io-label">Доход</div>
-      <div class="io-value" id="sumIncomeMonth">—</div>
-    </button>
-    <button type="button" class="io-card io-expense kpi-clickable" data-kpi="expense" title="Как это посчитано?" aria-label="Расход за период, показать расшифровку">
-      <div class="io-label">Расход</div>
-      <div class="io-value" id="sumExpenseMonth">—</div>
-    </button>
-  </div>
-  <!-- §6.5: долги отдельной компактной строкой -->
-  <button type="button" class="debts-row kpi-clickable" data-kpi="debts" title="Как это посчитано?" aria-label="Долги, показать расшифровку">
-    <span class="debts-row-label">Долги</span>
-    <span class="debts-row-right"><span class="debts-row-value" id="debtsMonthTotal">—</span> <i data-lucide="chevron-right"></i></span>
-  </button>
-  </div><!-- /home-col-left -->
-  <div class="home-col home-col-right">
 
-  <!-- A3: единая лента предстоящих движений за месяц (подписки + ежемес. расходы + ожид. доходы) -->
-  <div class="panel" id="upcomingFeedPanel">
-    <h2>Предстоит в этом месяце</h2>
-    <div id="upcomingFeed"></div>
+  <!-- Быстрые действия (ТЗ §8): «Добавить расход» — первое, самое заметное действие. -->
+  <div class="quick-actions-v2" id="quickActionsV2">
+    <button type="button" class="qa-primary" id="qaAddExpense" aria-label="Добавить расход">
+      <i data-lucide="minus-circle"></i><span>Добавить расход</span>
+    </button>
+    <div class="qa-secondary-row">
+      <button type="button" class="qa-secondary" id="qaAddIncome" aria-label="Добавить доход">
+        <span class="qa-sec-icon qa-sec-income"><i data-lucide="plus-circle"></i></span><span>Доход</span>
+      </button>
+      <button type="button" class="qa-secondary" id="qaAddDebt" aria-label="Долг по людям">
+        <span class="qa-sec-icon qa-sec-debt"><i data-lucide="users"></i></span><span>Долг</span>
+      </button>
+      <button type="button" class="qa-secondary" id="qaAddPurchase" aria-label="Покупки">
+        <span class="qa-sec-icon qa-sec-purchase"><i data-lucide="shopping-cart"></i></span><span>Покупка</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Долги (ТЗ §12): краткая сводка, не длинный список. -->
+  <div class="debts-compact-panel">
+    <button type="button" class="debts-row kpi-clickable" data-kpi="debts" title="Как это посчитано?" aria-label="Долги, показать расшифровку">
+      <span class="debts-row-label">Долги</span>
+      <span class="debts-row-right"><span class="debts-row-value" id="debtsMonthTotal">—</span> <i data-lucide="chevron-right"></i></span>
+    </button>
+    <div class="debts-compact-footer">
+      <span class="debts-compact-count" id="debtsMonthCount"></span>
+      <button type="button" class="debts-detail-link" id="debtsDetailLink">Подробнее</button>
+    </div>
+  </div>
+  </div><!-- /home-col-left -->
+
+  <div class="home-col home-col-center">
+  <!-- Этот месяц (ТЗ §9): только фактически внесённые операции — без плана/прогноза/лимита. -->
+  <div class="panel month-summary-panel" id="monthSummaryPanel">
+    <h2>Этот месяц</h2>
+    <div class="io-cards" style="margin-bottom:0;">
+      <button type="button" class="io-card io-income kpi-clickable" data-kpi="income" title="Как это посчитано?" aria-label="Доход за период, показать расшифровку">
+        <div class="io-label">Доходы</div>
+        <div class="io-value" id="sumIncomeMonth">—</div>
+      </button>
+      <button type="button" class="io-card io-expense kpi-clickable" data-kpi="expense" title="Как это посчитано?" aria-label="Расход за период, показать расшифровку">
+        <div class="io-label">Расходы</div>
+        <div class="io-value" id="sumExpenseMonth">—</div>
+      </button>
+    </div>
+    <div class="month-compare-note" id="monthCompareNote"></div>
   </div>
 
   <div class="panel" id="recentTxPanel">
     <h2 style="justify-content:space-between;">
       <span>Последние операции</span>
-      <span class="badge-info" id="recentTxSeeAllBtn" style="cursor:pointer;">Смотреть все →</span>
+      <span class="badge-info" id="recentTxSeeAllBtn" style="cursor:pointer;">Все операции →</span>
     </h2>
     <div id="recentTxList"></div>
+  </div>
+  </div><!-- /home-col-center (верхняя часть: месяц + последние операции) -->
+
+  <div class="home-col home-col-right">
+
+  <!-- Ближайшие платежи (ТЗ §11): максимум 3, справочная сумма — без вычитания из остатка. -->
+  <div class="panel" id="upcomingPaymentsPanel">
+    <h2 style="justify-content:space-between;">
+      <span>Ближайшие платежи</span>
+      <span class="badge-info badge-normalcase" id="upcomingPaymentsBadge"></span>
+    </h2>
+    <div id="upcomingPaymentsList"></div>
+  </div>
+
+  <!-- Покупки (ТЗ §13): компактная сводка, ниже расходов/операций. -->
+  <div class="panel compact-feature-panel" id="homeShoppingPanel">
+    <h2 style="justify-content:space-between;">
+      <span>Покупки</span>
+      <span class="badge-info badge-normalcase" id="homeShoppingBadge"></span>
+    </h2>
+    <div id="homeShoppingBody"></div>
+    <button type="button" class="btn-ghost compact-detail-btn" id="homeShoppingDetailBtn">Подробнее</button>
+  </div>
+
+  <!-- Подписки (ТЗ §13): компактная сводка. -->
+  <div class="panel compact-feature-panel" id="homeSubscriptionsPanel">
+    <h2 style="justify-content:space-between;">
+      <span>Подписки</span>
+      <span class="badge-info badge-normalcase" id="homeSubscriptionsBadge"></span>
+    </h2>
+    <div id="homeSubscriptionsBody"></div>
+    <button type="button" class="btn-ghost compact-detail-btn" id="homeSubscriptionsDetailBtn">Подробнее</button>
+  </div>
+
+  <!-- Сверка операций (ТЗ §14): справочное расхождение, не главное предупреждение страницы. -->
+  <div class="panel" id="discrepancyPanel" style="display:none;">
+    <h2>Сверка операций</h2>
+    <div class="discrepancy-note" id="discrepancyNote"></div>
+  </div>
+
+  <!-- A3: единая лента предстоящих движений за месяц (подписки + ежемес. расходы + ожид. доходы) —
+       второстепенный блок, дополняет компактные «Ближайшие платежи» выше. -->
+  <div class="panel" id="upcomingFeedPanel">
+    <h2>Предстоит в этом месяце</h2>
+    <div id="upcomingFeed"></div>
   </div>
 
   <!-- §6.9: краткая аналитическая карточка → ведёт на экран «Аналитика» -->
@@ -1794,26 +1883,12 @@
     <ul class="notepad-list" id="notepadList"></ul>
     <div class="empty-note" id="notepadEmptyNote" style="display:none;">Список пуст — добавьте что-нибудь голосом или текстом</div>
   </div>
-
-  <div class="quick-actions-grid">
-    <button type="button" class="quick-action-card" id="quickActionNewTx">
-      <div class="quick-action-icon"><i data-lucide="plus-circle"></i></div>
-      <div>
-        <div class="quick-action-title">Новая операция</div>
-        <div class="quick-action-sub">Доход или расход</div>
-      </div>
-    </button>
-    <button type="button" class="quick-action-card" id="quickActionDebt">
-      <div class="quick-action-icon"><i data-lucide="users"></i></div>
-      <div>
-        <div class="quick-action-title">Долг по людям</div>
-        <div class="quick-action-sub">Кому должны</div>
-      </div>
-    </button>
-  </div>
   </div><!-- /home-col-right -->
-  <div class="home-col home-col-center">
-
+  <!-- Нижняя часть центральной колонки (аналитика/операции целиком) размещена ПОСЛЕ home-col-right
+       в исходном порядке — на мобильном это даёт нужный порядок блоков (ТЗ §4: месяц/операции
+       выше платежей/покупок/подписок, а тяжёлые таблицы — ниже всего); на десктопе/планшете
+       .home-col-center-lower занимает тот же визуальный столбец вторым рядом (см. CSS). -->
+  <div class="home-col home-col-center-lower">
   <div class="main-grid">
     <!-- FORM: на мобильном — bottom sheet; на десктопе/планшете (≥768px) — модальное окно,
          открывается быстрым действием «Новая операция» или «+» в нижней навигации (§6.3: форма
@@ -2074,7 +2149,7 @@
       </div>
     </div>
   </div>
-  </div><!-- /home-col-center -->
+  </div><!-- /home-col-center-lower -->
   </div><!-- /home-grid -->
   </div>
 
@@ -3572,8 +3647,15 @@ function closeTxSheet() {
   document.getElementById('txSheetOverlay').classList.remove('visible');
 }
 document.getElementById('navAddBtn').addEventListener('click', openTxSheet);
-document.getElementById('quickActionNewTx').addEventListener('click', openTxSheet);
-document.getElementById('quickActionDebt').addEventListener('click', () => switchPageTab('debts'));
+// Быстрые действия (ТЗ 2026-07-24 «главная вокруг остатка», §8) — используют существующие
+// openTxSheet()/setKind()/switchPageTab(), новых форм не создаётся.
+document.getElementById('qaAddExpense').addEventListener('click', () => { openTxSheet(); setKind('expense'); });
+document.getElementById('qaAddIncome').addEventListener('click', () => { openTxSheet(); setKind('income'); });
+document.getElementById('qaAddDebt').addEventListener('click', () => switchPageTab('debts'));
+document.getElementById('qaAddPurchase').addEventListener('click', () => switchPageTab('shopping'));
+document.getElementById('debtsDetailLink').addEventListener('click', () => switchPageTab('debts'));
+document.getElementById('homeShoppingDetailBtn').addEventListener('click', () => switchPageTab('shopping'));
+document.getElementById('homeSubscriptionsDetailBtn').addEventListener('click', () => switchPageTab('analytics'));
 document.getElementById('txSheetCloseBtn').addEventListener('click', closeTxSheet);
 document.getElementById('txSheetOverlay').addEventListener('click', (e) => {
   if (e.target.id === 'txSheetOverlay') closeTxSheet();
@@ -3623,33 +3705,25 @@ function initAnalyticsScreen() {
   // Дашборд-раскладка активна и на планшете (2 колонки), и на десктопе (3 колонки) — от 900px.
   // На <900px (мобильный) — прежнее поведение: всё на вкладке «Аналитика».
   const dashboard = window.innerWidth >= 900;
-  const left = document.querySelector('.home-col-left');
-  const center = document.querySelector('.home-col-center');
-  const right = document.querySelector('.home-col-right');
+  const centerLower = document.querySelector('.home-col-center-lower');
 
   // Крупные графики — всегда на вкладке «Аналитика».
   ['expenseOverviewPanel', 'dynamicsPanel'].forEach(id => { const el = mv(id); if (el) body.appendChild(el); });
 
-  if (dashboard && left && center && right) {
-    // Дашборд: быстрые действия — влево; расходы по категориям + сравнение — в центр (над
-    // операциями, это главный блок); обязательные платежи → предстоящее → подписки — вправо.
-    const qa = document.querySelector('.quick-actions-grid'); if (qa) left.appendChild(qa);
-    const mainGrid = center.querySelector('.main-grid');
-    ['categoryRankingGrid', 'periodComparisonPanel'].forEach(id => { const el = mv(id); if (el && mainGrid) center.insertBefore(el, mainGrid); });
-    // Порядок правой колонки по ТЗ: обязательные платежи, ближайшие события, подписки, список покупок.
-    const upcoming = mv('upcomingFeedPanel');
-    const recurringEl = mv('recurringPanel'); if (recurringEl && upcoming) right.insertBefore(recurringEl, upcoming);
-    const subsEl = mv('subscriptionsPanel'); const recentTx = mv('recentTxPanel');
-    if (subsEl) right.insertBefore(subsEl, recentTx || null); // после «Предстоит», перед скрытым блоком последних операций
-    // На вкладке «Аналитика» остаётся структура регулярных расходов.
-    const head = document.createElement('h2'); head.className = 'analytics-section-head'; head.textContent = 'Регулярные платежи'; body.appendChild(head);
-    const bd = mv('recurringBreakdownPanel'); if (bd) body.appendChild(bd);
+  if (dashboard && centerLower) {
+    // Дашборд (ТЗ §16): «основная аналитика» центральной колонки — расходы по категориям и
+    // сравнение периодов, над таблицей операций.
+    const mainGrid = centerLower.querySelector('.main-grid');
+    ['categoryRankingGrid', 'periodComparisonPanel'].forEach(id => { const el = mv(id); if (el && mainGrid) centerLower.insertBefore(el, mainGrid); });
   } else {
-    // Мобильный/планшет: всё на вкладке «Аналитика» (без изменений).
+    // Мобильный (<900px): сравнение периодов и категории — на вкладке «Аналитика».
     ['periodComparisonPanel', 'categoryRankingGrid'].forEach(id => { const el = mv(id); if (el) body.appendChild(el); });
-    const head = document.createElement('h2'); head.className = 'analytics-section-head'; head.textContent = 'Регулярные платежи'; body.appendChild(head);
-    ['recurringBreakdownPanel', 'subscriptionsPanel', 'recurringPanel'].forEach(id => { const el = mv(id); if (el) body.appendChild(el); });
   }
+  // Полные панели «Ежемесячные расходы»/«Подписки» + структура регулярных расходов — всегда на
+  // вкладке «Аналитика» (на любой ширине): на главной их роль выполняют компактные превью
+  // «Ближайшие платежи»/«Подписки» (ТЗ §11/§13), а полное управление — по кнопке «Подробнее».
+  const head = document.createElement('h2'); head.className = 'analytics-section-head'; head.textContent = 'Регулярные платежи'; body.appendChild(head);
+  ['recurringBreakdownPanel', 'subscriptionsPanel', 'recurringPanel'].forEach(id => { const el = mv(id); if (el) body.appendChild(el); });
   analyticsRelocated = true;
 }
 document.getElementById('analyticsTeaser').addEventListener('click', () => switchPageTab('analytics'));
@@ -6716,9 +6790,12 @@ function renderRealBalance() {
 
 // Справочное расхождение между операциями и остатками (ТЗ §8). Не «ошибка», без агрессии.
 function renderDiscrepancyNote() {
+  // ТЗ 2026-07-24 «главная вокруг остатка», §14: панель «Сверка операций» — справочный блок
+  // третьего уровня значимости (не главное предупреждение страницы), заголовок статичен в HTML.
+  const panel = document.getElementById('discrepancyPanel');
   const box = document.getElementById('discrepancyNote');
-  if (!box) return;
-  box.style.display = 'none';
+  if (!panel || !box) return;
+  panel.style.display = 'none';
   if (state.discrepancyDismissed) return;
   const snaps = snapshotsDesc();
   if (snaps.length < 2) return;
@@ -6736,13 +6813,13 @@ function renderDiscrepancyNote() {
       Разница: ${fmt.format(Math.abs(difference))}.</div>
     <div class="dn-hint">Возможно, часть операций ещё не внесена.</div>
     <div class="dn-actions">
-      <button type="button" class="dn-btn dn-primary" id="dnCheckBtn">Проверить расходы</button>
+      <button type="button" class="dn-btn dn-primary" id="dnCheckBtn">Проверить операции</button>
       <button type="button" class="dn-btn" id="dnCloseBtn">Закрыть</button>
     </div>`;
-  box.style.display = '';
-  document.getElementById('dnCloseBtn').addEventListener('click', () => { state.discrepancyDismissed = true; box.style.display = 'none'; });
+  panel.style.display = '';
+  document.getElementById('dnCloseBtn').addEventListener('click', () => { state.discrepancyDismissed = true; panel.style.display = 'none'; });
   document.getElementById('dnCheckBtn').addEventListener('click', () => {
-    state.discrepancyDismissed = true; box.style.display = 'none';
+    state.discrepancyDismissed = true; panel.style.display = 'none';
     switchPageTab('budget');
     const tx = document.getElementById('txPanel');
     if (tx) tx.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -7005,6 +7082,27 @@ function renderSummary() {
   setKpi('debtsMonthCount', unpaidDebtsCount ? `${unpaidDebtsCount} ${pluralDolg(unpaidDebtsCount)}` : '');
   // Главный показатель остатка вынесен в карточку «Реальный остаток семьи» (renderRealBalance).
   // Рассчитанный баланс (доход − расход) больше не является главным на главной (ТЗ §2/§15).
+
+  // «Этот месяц» (ТЗ 2026-07-24 «главная вокруг остатка», §9): фактическое сравнение расходов
+  // с прошлым периодом текстом — только если есть с чем сравнивать; тот же расчёт, что и в
+  // остальном приложении (formatGrowth), новой логики не добавляется. Для незавершённого месяца
+  // сравнение не показываем — % против неполного периода вводит в заблуждение (как и всюду).
+  const compareEl = document.getElementById('monthCompareNote');
+  if (compareEl) {
+    if (isCurrentMonthActive() || !expensePrev) {
+      compareEl.textContent = '';
+    } else {
+      const delta = expensePeriod - expensePrev;
+      if (delta === 0) {
+        compareEl.textContent = '';
+      } else {
+        const cls = delta > 0 ? 'mc-up' : 'mc-down';
+        const word = delta > 0 ? 'больше' : 'меньше';
+        const periodWord = state.viewMode === 'year' ? 'в прошлом году' : 'в прошлом периоде';
+        compareEl.innerHTML = `Расходы на <span class="${cls}">${fmt.format(Math.abs(delta))}</span> ${word}, чем ${periodWord}`;
+      }
+    }
+  }
 }
 
 // Obligatory outflows still due this month = active recurring expenses not yet paid this
@@ -7071,6 +7169,84 @@ function renderUpcomingFeed() {
       </div>
       <div class="upcoming-amount ${it.dir}">${it.dir === 'in' ? '+' : '−'} ${fmt.format(it.amount)}</div>
     </div>`).join('');
+}
+
+/* ====== ГЛАВНАЯ ВОКРУГ ОСТАТКА (ТЗ 2026-07-24): компактные превью-виджеты ======
+   Используют уже существующие данные из state и уже посчитанную логику (getActiveRecurringGroups,
+   computeUnpaidDebtsTotal и т.п.) — новых Supabase-запросов и новых бизнес-правил не добавляется. */
+
+// «Ближайшие платежи» (ТЗ §11): только обязательные РАСХОДЫ (регулярные + подписки) этого
+// месяца, максимум 3 в списке; справочная сумма — по всем найденным, не вычитается из остатка.
+function renderUpcomingPayments() {
+  const list = document.getElementById('upcomingPaymentsList');
+  const badge = document.getElementById('upcomingPaymentsBadge');
+  if (!list) return;
+  const today = todayStr();
+  const monthK = today.slice(0, 7);
+  const items = [];
+  getActiveRecurringGroups().forEach(g => {
+    const due = `${monthK}-${g.minDate.slice(8, 10)}`;
+    if (due >= today) items.push({ date: due, name: g.subcategory ? `${g.category} · ${g.subcategory}` : g.category, amount: g.amount });
+  });
+  state.subscriptions.forEach(s => {
+    if (s.is_active && s.next_billing_date && s.next_billing_date.slice(0, 7) === monthK && s.next_billing_date >= today) {
+      items.push({ date: s.next_billing_date, name: s.name, amount: Number(s.amount) });
+    }
+  });
+  // Сверка с фактом: если операция с тем же именем в этом месяце уже внесена — берём её сумму
+  // (тот же приём, что и в «Предстоит в этом месяце»). 2026-07-19
+  items.forEach(it => {
+    const match = state.transactions.find(t =>
+      t.kind === 'expense' && monthKey(t.date) === monthK && hasHappened(t) &&
+      (txCategoryLabel(t) === it.name || t.subcategory === it.name || t.category === it.name));
+    if (match) it.amount = Number(match.amount);
+  });
+  items.sort((a, b) => a.date.localeCompare(b.date));
+
+  if (badge) badge.textContent = items.length ? `Ближайшие платежи: ${fmt.format(items.reduce((s, it) => s + it.amount, 0))}` : '';
+  if (!items.length) { list.innerHTML = '<div class="empty-note">Ближайших платежей нет</div>'; return; }
+  list.innerHTML = items.slice(0, 3).map(it => `
+    <div class="upcoming-pay-row">
+      <div style="min-width:0;">
+        <div class="upcoming-pay-name">${escapeHtml(it.name)}</div>
+        <div class="upcoming-pay-date">${formatDateHuman(it.date)}</div>
+      </div>
+      <div class="upcoming-pay-amount">${fmt.format(it.amount)}</div>
+    </div>`).join('');
+}
+
+// «Покупки» (ТЗ §13): компактная сводка — количество, ближайшая/самая важная позиция, сумма.
+// Использует state.shoppingList как есть (планируемые покупки), без нового расчёта.
+function renderHomeShoppingWidget() {
+  const badge = document.getElementById('homeShoppingBadge');
+  const body = document.getElementById('homeShoppingBody');
+  if (!body) return;
+  const list = state.shoppingList.filter(i => !i.is_bought);
+  if (badge) badge.textContent = list.length ? `${list.length} поз.` : '';
+  if (!list.length) { body.innerHTML = '<div class="empty-note">Нет активных покупок</div>'; return; }
+  const total = list.reduce((s, i) => s + Number(i.amount || 0), 0);
+  // «Ближайшая» — по planned_date, если она есть хотя бы у одной позиции; иначе «самая важная» — по сумме.
+  const withDate = list.filter(i => i.planned_date).sort((a, b) => a.planned_date.localeCompare(b.planned_date));
+  const featured = withDate.length ? withDate[0] : [...list].sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))[0];
+  body.innerHTML = `
+    <div class="cfp-row"><span class="cfp-label">${escapeHtml(featured.name)}</span><span class="cfp-value">${fmt.format(Number(featured.amount || 0))}</span></div>
+    <div class="cfp-row"><span class="cfp-label">Итого по списку</span><span class="cfp-value">${fmt.format(total)}</span></div>`;
+}
+
+// «Подписки» (ТЗ §13): компактная сводка — ближайшее списание, сумма, количество активных.
+// Та же фильтрация/сортировка, что и в renderSubscriptionsSummary(), только компактный рендер.
+function renderHomeSubscriptionsWidget() {
+  const badge = document.getElementById('homeSubscriptionsBadge');
+  const body = document.getElementById('homeSubscriptionsBody');
+  if (!body) return;
+  const activeSubs = state.subscriptions.filter(s => s.is_active);
+  const total = activeSubs.reduce((s, sub) => s + Number(sub.amount), 0);
+  if (badge) badge.textContent = activeSubs.length ? `${activeSubs.length} ${pluralSubscription(activeSubs.length)}` : '';
+  if (!activeSubs.length) { body.innerHTML = '<div class="empty-note">Нет активных подписок</div>'; return; }
+  const nextSub = activeSubs.filter(s => s.next_billing_date).sort((a, b) => a.next_billing_date.localeCompare(b.next_billing_date))[0];
+  body.innerHTML = `
+    ${nextSub ? `<div class="cfp-row"><span class="cfp-label">Ближайшее: ${escapeHtml(nextSub.name)}</span><span class="cfp-value">${fmt.format(Number(nextSub.amount))}</span></div>` : ''}
+    <div class="cfp-row"><span class="cfp-label">В месяц</span><span class="cfp-value">${fmt.format(total)}</span></div>`;
 }
 
 /* ---------------- F8 (2026-07-17): расшифровка KPI по тапу ---------------- */
@@ -7315,15 +7491,24 @@ function renderRecentTransactions() {
     .sort((a, b) => (b.date + 'T' + (b.time || '00:00')).localeCompare(a.date + 'T' + (a.time || '00:00')))
     .slice(0, 5);
   const box = document.getElementById('recentTxList');
+  if (!list.length) {
+    // ТЗ 2026-07-24 §10: пустое состояние с призывом к действию, а не просто «нет данных».
+    box.innerHTML = `
+      <div class="empty-note">Операций пока нет<br>Добавьте первый расход или доход</div>
+      <button type="button" class="btn-primary" id="recentTxEmptyAddBtn" style="margin-top:10px;">Добавить расход</button>`;
+    const btn = document.getElementById('recentTxEmptyAddBtn');
+    if (btn) btn.addEventListener('click', () => { openTxSheet(); setKind('expense'); });
+    return;
+  }
   box.innerHTML = list.map(t => `
     <div class="recent-tx-row">
       ${categoryIconImg(t.category, t.kind)}
       <div class="recent-tx-info">
         <div class="recent-tx-cat">${txCategoryLabel(t)}</div>
-        <div class="recent-tx-date">${t.date}${t.comment ? ' · ' + escapeHtml(t.comment) : ''}</div>
+        <div class="recent-tx-date">${formatDateHuman(t.date)}${t.comment ? ' · ' + escapeHtml(t.comment) : ''}</div>
       </div>
       <div class="recent-tx-amount ${t.kind === 'income' ? 'amount-income' : 'amount-expense'}">${t.kind === 'income' ? '+' : '−'} ${fmt.format(t.amount)}</div>
-    </div>`).join('') || '<div class="empty-note">Нет операций</div>';
+    </div>`).join('');
 }
 
 /* ---------------- RENDER: TABLE ---------------- */
@@ -7847,9 +8032,12 @@ function renderEverything() {
   renderRecurring();
   renderRecurringDueSoon();
   renderUpcomingFeed();
+  renderUpcomingPayments();
   renderRecurringBreakdown();
   renderShoppingSummary();
   renderShoppingList();
+  renderHomeShoppingWidget();
+  renderHomeSubscriptionsWidget();
   renderIncomeSummary();
   renderExpectedIncome();
   renderIncomeDynamics();
